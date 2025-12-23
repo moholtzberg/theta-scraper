@@ -238,6 +238,29 @@ export async function POST({ request }) {
 
 					return json({ greeks: greeksMap });
 				} catch (err) {
+					// Handle quota violations gracefully
+					if (err.message && err.message.includes('Quota Violation')) {
+						// Parse expiration timestamp from error message
+						const expirationMatch = err.message.match(/Expires (\d+)/);
+						let quotaResetTime = null;
+						if (expirationMatch) {
+							const expirationTimestamp = parseInt(expirationMatch[1]);
+							quotaResetTime = new Date(expirationTimestamp);
+						}
+						
+						const errorMessage = quotaResetTime 
+							? `API quota exceeded. Resets at ${quotaResetTime.toLocaleTimeString()}`
+							: 'API quota exceeded. Please try again later.';
+						
+						console.warn('Quota violation:', errorMessage);
+						return json({ 
+							error: errorMessage, 
+							quotaViolation: true,
+							quotaResetTime: quotaResetTime?.toISOString(),
+							greeks: {} 
+						});
+					}
+					
 					console.error('Error fetching position greeks:', err);
 					return json({ error: err.message, greeks: {} });
 				}

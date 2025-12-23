@@ -35,12 +35,23 @@
 	
 	// Portfolio greeks state
 	let portfolioGreeks = $state({ netDelta: 0, netTheta: 0, loading: false });
+	let quotaViolation = $state(null); // Quota violation info { message, resetTime }
+	
+	// Rate limiting state
+	let lastGreeksCallTime = $state(0); // Timestamp of last greeks API call
+	let greeksCallInProgress = $state(false); // Flag to prevent concurrent calls
+	let greeksCallTimeout = null; // Debounce timeout
 	
 	// Strike and expiration navigation state
 	let strikeOffset = $state(0); // Strike offset in $5 increments (or $1 for some symbols)
 	let expirationOffset = $state(0); // Expiration offset (0 = current, -1 = previous, +1 = next)
 	let availableExpirations = $state([]); // Available expiration dates
 	let currentStrike = $state(null); // Current strike being viewed
+	
+	// Rate limiting constants
+	const MIN_GREEKS_CALL_INTERVAL = 5000; // Minimum 5 seconds between greeks API calls
+	const GREEKS_DEBOUNCE_DELAY = 2000; // 2 second debounce delay
+	const QUOTA_COOLDOWN = 60000; // 60 second cooldown after quota violation
 
 	const availableSymbols = [
 		{ value: 'SPY', label: 'SPY - S&P 500 ETF' },
@@ -75,13 +86,28 @@
 		};
 	});
 
-	// Recalculate portfolio greeks when positions change
+	// Recalculate portfolio greeks when positions change (with debouncing)
 	$effect(() => {
 		if (positions.length > 0) {
-			calculatePortfolioGreeks();
+			// Clear any existing timeout
+			if (greeksCallTimeout) {
+				clearTimeout(greeksCallTimeout);
+			}
+			
+			// Debounce the call
+			greeksCallTimeout = setTimeout(() => {
+				calculatePortfolioGreeks();
+			}, GREEKS_DEBOUNCE_DELAY);
 		} else {
 			portfolioGreeks = { netDelta: 0, netTheta: 0, loading: false };
 		}
+		
+		// Cleanup timeout on unmount
+		return () => {
+			if (greeksCallTimeout) {
+				clearTimeout(greeksCallTimeout);
+			}
+		};
 	});
 
 
@@ -465,6 +491,16 @@
 	async function fetchInitialPositionQuotes() {
 		if (positions.length === 0) return;
 
+		// Rate limiting: check minimum interval since last call
+		const now = Date.now();
+		const timeSinceLastCall = now - lastGreeksCallTime;
+		
+		if (timeSinceLastCall < MIN_GREEKS_CALL_INTERVAL) {
+			const waitTime = MIN_GREEKS_CALL_INTERVAL - timeSinceLastCall;
+			console.log(`Rate limiting initial quotes: waiting ${waitTime}ms`);
+			await new Promise(resolve => setTimeout(resolve, waitTime));
+		}
+
 		try {
 			// Get all position symbols
 			const positionSymbols = positions
@@ -485,9 +521,25 @@
 
 			const data = await response.json();
 			
+			lastGreeksCallTime = Date.now();
+			
 			if (data.error || !data.greeks) {
+				// Handle quota violations
+				if (data.quotaViolation) {
+					quotaViolation = {
+						message: data.error,
+						resetTime: data.quotaResetTime ? new Date(data.quotaResetTime) : null
+					};
+					// Don't retry immediately after quota violation
+					lastGreeksCallTime = Date.now() + QUOTA_COOLDOWN;
+				}
 				console.warn('Error fetching initial position quotes:', data.error);
 				return;
+			}
+			
+			// Clear quota violation if request succeeded
+			if (quotaViolation) {
+				quotaViolation = null;
 			}
 
 			// Update positions with initial quotes and market values
@@ -543,7 +595,38 @@
 			return;
 		}
 
+		// Rate limiting: prevent concurrent calls
+		if (greeksCallInProgress) {
+			console.log('Greeks call already in progress, skipping...');
+			return;
+		}
+
+		// Rate limiting: check minimum interval since last call
+		const now = Date.now();
+		const timeSinceLastCall = now - lastGreeksCallTime;
+		
+		if (timeSinceLastCall < MIN_GREEKS_CALL_INTERVAL) {
+			const waitTime = MIN_GREEKS_CALL_INTERVAL - timeSinceLastCall;
+			console.log(`Rate limiting: waiting ${waitTime}ms before next greeks call`);
+			setTimeout(() => calculatePortfolioGreeks(), waitTime);
+			return;
+		}
+
+		// Cooldown after quota violation
+		if (quotaViolation && quotaViolation.resetTime) {
+			const resetTime = quotaViolation.resetTime.getTime();
+			if (resetTime > now) {
+				const waitTime = Math.min(resetTime - now, QUOTA_COOLDOWN);
+				console.log(`Quota violation cooldown: waiting ${waitTime}ms`);
+				setTimeout(() => calculatePortfolioGreeks(), waitTime);
+				return;
+			}
+		}
+
+		greeksCallInProgress = true;
+		lastGreeksCallTime = now;
 		portfolioGreeks.loading = true;
+		
 		try {
 			// Get all position symbols
 			const positionSymbols = positions
@@ -568,9 +651,25 @@
 			const data = await response.json();
 			
 			if (data.error) {
-				console.warn('Error fetching position greeks:', data.error);
+				// Handle quota violations
+				if (data.quotaViolation) {
+					quotaViolation = {
+						message: data.error,
+						resetTime: data.quotaResetTime ? new Date(data.quotaResetTime) : null
+					};
+					console.warn('Quota violation:', data.error);
+					// Don't retry immediately after quota violation
+					lastGreeksCallTime = Date.now() + QUOTA_COOLDOWN;
+				} else {
+					console.warn('Error fetching position greeks:', data.error);
+				}
 				portfolioGreeks = { netDelta: 0, netTheta: 0, loading: false };
 				return;
+			}
+			
+			// Clear quota violation if request succeeded
+			if (quotaViolation) {
+				quotaViolation = null;
 			}
 
 			// Calculate total net delta and theta
@@ -599,6 +698,8 @@
 		} catch (err) {
 			console.error('Error calculating portfolio greeks:', err);
 			portfolioGreeks = { netDelta: 0, netTheta: 0, loading: false };
+		} finally {
+			greeksCallInProgress = false;
 		}
 	}
 
@@ -1051,19 +1152,6 @@
 	<!-- Sticky Header -->
 	<header class="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
 		<div class="px-4 sm:px-6 lg:px-8 py-4">
-			<div class="flex items-center justify-between mb-3">
-				<div>
-					<h1 class="text-2xl font-bold text-gray-900">📈 {symbol} {(targetDelta * 100).toFixed(0)} Delta {optionType.charAt(0).toUpperCase() + optionType.slice(1)} Calendar Spread</h1>
-					<p class="text-sm text-gray-600 mt-1">Automated calendar spread trading with 3/4 day expiration</p>
-				</div>
-				<button
-					onclick={loadData}
-					disabled={loading}
-					class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-semibold"
-				>
-					{loading ? 'Loading...' : 'Refresh'}
-				</button>
-			</div>
 
 			<!-- Error/Warning Display -->
 			{#if error}
@@ -1080,22 +1168,34 @@
 				</div>
 			{/if}
 
+			{#if quotaViolation}
+				<div class="bg-orange-50 border border-orange-200 text-orange-800 px-3 py-2 rounded-lg mb-2 text-sm">
+					<p class="font-semibold">⚠️ API Quota Exceeded:</p>
+					<p>{quotaViolation.message}</p>
+					{#if quotaViolation.resetTime}
+						<p class="text-xs mt-1 text-orange-700">
+							Quota resets at {quotaViolation.resetTime.toLocaleTimeString()}
+						</p>
+					{/if}
+				</div>
+			{/if}
+
 			<!-- Account Summary & Portfolio Greeks -->
-			<div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3 mt-3">
+			<div class="flex flex-row gap-3">
 				{#if balances}
-					<div class="bg-gray-50 rounded-lg p-2">
+					<div class="bg-gray-50 rounded-lg p-2 flex-1">
 						<p class="text-xs text-gray-600">Total Equity</p>
 						<p class="text-lg font-bold text-gray-900">{formatCurrency(balances.total_equity || 0)}</p>
 					</div>
-					<div class="bg-gray-50 rounded-lg p-2">
+					<div class="bg-gray-50 rounded-lg p-2 flex-1">
 						<p class="text-xs text-gray-600">Cash</p>
 						<p class="text-lg font-bold text-gray-900">{formatCurrency(balances.total_cash || 0)}</p>
 					</div>
-					<div class="bg-gray-50 rounded-lg p-2">
+					<div class="bg-gray-50 rounded-lg p-2 flex-1">
 						<p class="text-xs text-gray-600">Market Value</p>
 						<p class="text-lg font-bold text-gray-900">{formatCurrency(balances.market_value || 0)}</p>
 					</div>
-					<div class="bg-gray-50 rounded-lg p-2">
+					<div class="bg-gray-50 rounded-lg p-2 flex-1">
 						<p class="text-xs text-gray-600">Open P&L</p>
 						<p class="text-lg font-bold {parseFloat(balances.open_pl || 0) >= 0 ? 'text-green-600' : 'text-red-600'}">
 							{formatCurrency(balances.open_pl || 0)}
@@ -1103,19 +1203,26 @@
 					</div>
 				{/if}
 				{#if positions.length > 0 && !portfolioGreeks.loading}
-					<div class="bg-purple-50 rounded-lg p-2 border border-purple-200">
+					<div class="bg-purple-50 rounded-lg p-2 border border-purple-200 flex-1">
 						<p class="text-xs text-gray-600">Net Delta</p>
 						<p class="text-lg font-bold {portfolioGreeks.netDelta >= 0 ? 'text-green-600' : 'text-red-600'}">
 							{portfolioGreeks.netDelta.toFixed(2)}
 						</p>
 					</div>
-					<div class="bg-purple-50 rounded-lg p-2 border border-purple-200">
+					<div class="bg-purple-50 rounded-lg p-2 border border-purple-200 flex-1">
 						<p class="text-xs text-gray-600">Net Theta</p>
 						<p class="text-lg font-bold {portfolioGreeks.netTheta >= 0 ? 'text-green-600' : 'text-red-600'}">
 							{portfolioGreeks.netTheta.toFixed(1)}/day
 						</p>
 					</div>
 				{/if}
+				<button
+					onclick={loadData}
+					disabled={loading}
+					class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-semibold flex-1"
+				>
+					{loading ? 'Loading...' : 'Refresh'}
+				</button>
 			</div>
 		</div>
 	</header>
