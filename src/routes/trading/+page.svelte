@@ -1184,188 +1184,160 @@
 
 				<!-- Spread Options Display -->
 				{#if spreadOptions}
-					<div class="bg-white rounded-lg shadow-md p-6 mb-6">
-						<div class="flex items-center gap-3 mb-4">
-							<h2 class="text-xl font-semibold text-gray-900">Available Spread Options</h2>
-							{#if streamingEnabled && (spreadOptionQuotes[spreadOptions.shortOption?.symbol] || spreadOptionQuotes[spreadOptions.longOption?.symbol])}
-								<span class="flex items-center gap-2 text-sm text-green-600">
-									<span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-									<span>Live Prices</span>
-								</span>
+					{@const shortDelta = spreadOptions.shortOption.delta ?? spreadOptions.shortOption.greeks?.delta ?? 0}
+					{@const longDelta = spreadOptions.longOption.delta ?? spreadOptions.longOption.greeks?.delta ?? 0}
+					{@const shortTheta = spreadOptions.shortOption.greeks?.theta ?? 0}
+					{@const longTheta = spreadOptions.longOption.greeks?.theta ?? 0}
+					{@const netDelta = (longDelta - shortDelta) * quantity}
+					{@const netTheta = (longTheta - shortTheta) * quantity}
+					{@const netCost = (spreadOptions.longOption.ask || 0) - (spreadOptions.shortOption.bid || 0)}
+					
+					<div class="bg-white rounded-lg shadow-md p-4 mb-4">
+						<!-- Header -->
+						<div class="flex items-center justify-between mb-3">
+							<div class="flex items-center gap-3">
+								<h2 class="text-lg font-semibold text-gray-900">Calendar Spread</h2>
+								{#if streamingEnabled && (spreadOptionQuotes[spreadOptions.shortOption?.symbol] || spreadOptionQuotes[spreadOptions.longOption?.symbol])}
+									<span class="flex items-center gap-1 text-xs text-green-600">
+										<span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+										<span>Live</span>
+									</span>
+								{/if}
+							</div>
+							{#if currentPrice > 0}
+								<div class="text-right">
+									<p class="text-xs text-gray-500">{symbol}</p>
+									<p class="text-lg font-bold text-gray-900">{formatCurrency(currentPrice)}</p>
+								</div>
 							{/if}
 						</div>
-						
-						{#if currentPrice > 0}
-							<div class="mb-4">
-								<p class="text-sm text-gray-600">Current {symbol} Price</p>
-								<p class="text-2xl font-bold text-gray-900">{formatCurrency(currentPrice)}</p>
-							</div>
-						{/if}
 
-						<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-							<!-- Short Option -->
-							<div class="border border-gray-200 rounded-lg p-4">
-								<h3 class="text-lg font-semibold text-gray-900 mb-3">Short Leg (Sell)</h3>
-								<div class="space-y-2">
-									<div>
-										<p class="text-sm text-gray-600">Symbol</p>
-										<p class="font-medium">{spreadOptions.shortOption.symbol || 'N/A'}</p>
-									</div>
-									<div>
-										<p class="text-sm text-gray-600">Strike</p>
-										<p class="font-medium">{formatCurrency(spreadOptions.shortOption.strike || 0)}</p>
-									</div>
-									<div>
-										<p class="text-sm text-gray-600">Delta</p>
-										<p class="font-medium">{spreadOptions.shortOption.delta?.toFixed(3) || 'N/A'}</p>
-									</div>
-									<div>
-										<p class="text-sm text-gray-600">Bid/Ask</p>
-										<div class="flex items-center gap-2">
-											<p class="font-medium">
-												{formatCurrency(spreadOptions.shortOption.bid || 0)} / {formatCurrency(spreadOptions.shortOption.ask || 0)}
-												{#if spreadOptions.shortOption.last}
-													<span class="text-xs text-gray-500 ml-2">(Last: {formatCurrency(spreadOptions.shortOption.last)})</span>
-												{/if}
-											</p>
-											{#if spreadOptionQuotes[spreadOptions.shortOption.symbol] && streamingEnabled}
-												<span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-											{/if}
+						<!-- Visual Trade Structure -->
+						<div class="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-4 mb-3 border border-blue-200">
+							<div class="flex items-center justify-between mb-2">
+								<div class="flex-1">
+									<div class="flex items-center gap-2 mb-1">
+										<div class="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center border-2 border-red-300">
+											<span class="text-red-600 font-bold text-sm">↓</span>
+										</div>
+										<div class="flex-1">
+											<div class="flex items-center gap-2">
+												<span class="text-xs font-semibold text-red-700">SELL</span>
+												<span class="text-sm font-bold text-gray-900">{spreadOptions.shortOption.symbol || 'N/A'}</span>
+											</div>
+											<div class="flex items-center gap-3 text-xs text-gray-600 mt-0.5">
+												<span>Strike: <span class="font-semibold text-gray-900">{formatCurrency(spreadOptions.shortOption.strike || 0)}</span></span>
+												<span>•</span>
+												<span>{spreadOptions.shortOption.daysUntil} days</span>
+												<span>•</span>
+												<span>Δ {shortDelta.toFixed(2)}</span>
+											</div>
+										</div>
+										<div class="text-right">
+											<p class="text-xs text-gray-500">Credit</p>
+											<p class="text-sm font-bold text-green-600">+{formatCurrency(spreadOptions.shortOption.bid || 0)}</p>
 										</div>
 									</div>
-									<div>
-										<p class="text-sm text-gray-600">Expiration</p>
-										<p class="font-medium">{formatDate(spreadOptions.shortExpiration)} ({spreadOptions.shortOption.daysUntil} days)</p>
+									
+									<!-- Arrow -->
+									<div class="flex justify-center my-1">
+										<div class="w-px h-4 bg-gray-300"></div>
+									</div>
+									
+									<div class="flex items-center gap-2">
+										<div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center border-2 border-green-300">
+											<span class="text-green-600 font-bold text-sm">↑</span>
+										</div>
+										<div class="flex-1">
+											<div class="flex items-center gap-2">
+												<span class="text-xs font-semibold text-green-700">BUY</span>
+												<span class="text-sm font-bold text-gray-900">{spreadOptions.longOption.symbol || 'N/A'}</span>
+											</div>
+											<div class="flex items-center gap-3 text-xs text-gray-600 mt-0.5">
+												<span>Strike: <span class="font-semibold text-gray-900">{formatCurrency(spreadOptions.longOption.strike || 0)}</span></span>
+												<span>•</span>
+												<span>{spreadOptions.longOption.daysUntil} days</span>
+												<span>•</span>
+												<span>Δ {longDelta.toFixed(2)}</span>
+											</div>
+										</div>
+										<div class="text-right">
+											<p class="text-xs text-gray-500">Debit</p>
+											<p class="text-sm font-bold text-red-600">-{formatCurrency(spreadOptions.longOption.ask || 0)}</p>
+										</div>
 									</div>
 								</div>
 							</div>
-
-							<!-- Long Option -->
-							<div class="border border-gray-200 rounded-lg p-4">
-								<h3 class="text-lg font-semibold text-gray-900 mb-3">Long Leg (Buy)</h3>
-								<div class="space-y-2">
-									<div>
-										<p class="text-sm text-gray-600">Symbol</p>
-										<p class="font-medium">{spreadOptions.longOption.symbol || 'N/A'}</p>
-									</div>
-									<div>
-										<p class="text-sm text-gray-600">Strike</p>
-										<p class="font-medium">{formatCurrency(spreadOptions.longOption.strike || 0)}</p>
-									</div>
-									<div>
-										<p class="text-sm text-gray-600">Delta</p>
-										<p class="font-medium">
-											{(spreadOptions.longOption.delta ?? spreadOptions.longOption.greeks?.delta)?.toFixed(3) || 'N/A'}
-										</p>
-									</div>
-									<div>
-										<p class="text-sm text-gray-600">Bid/Ask</p>
-										<div class="flex items-center gap-2">
-											<p class="font-medium">
-												{formatCurrency(spreadOptions.longOption.bid || 0)} / {formatCurrency(spreadOptions.longOption.ask || 0)}
-												{#if spreadOptions.longOption.last}
-													<span class="text-xs text-gray-500 ml-2">(Last: {formatCurrency(spreadOptions.longOption.last)})</span>
-												{/if}
-											</p>
-											{#if spreadOptionQuotes[spreadOptions.longOption.symbol] && streamingEnabled}
-												<span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-											{/if}
-										</div>
-									</div>
-									<div>
-										<p class="text-sm text-gray-600">Expiration</p>
-										<p class="font-medium">{formatDate(spreadOptions.longExpiration)} ({spreadOptions.longOption.daysUntil} days)</p>
-									</div>
+							
+							<!-- Net Cost Highlight -->
+							<div class="mt-3 pt-3 border-t border-gray-300 flex items-center justify-between">
+								<div>
+									<p class="text-xs text-gray-600">Net Cost ({quantity} spread{quantity > 1 ? 's' : ''})</p>
+									<p class="text-xl font-bold {netCost >= 0 ? 'text-red-600' : 'text-green-600'}">
+										{netCost >= 0 ? '-' : '+'}{formatCurrency(Math.abs(netCost * quantity))}
+									</p>
+								</div>
+								<div class="text-right">
+									<p class="text-xs text-gray-600">Per Spread</p>
+									<p class="text-lg font-semibold text-gray-900">{formatCurrency(netCost)}</p>
 								</div>
 							</div>
 						</div>
 
-						<!-- Net Greeks Summary -->
-						{#if spreadOptions}
-							{@const shortDelta = spreadOptions.shortOption.delta ?? spreadOptions.shortOption.greeks?.delta ?? 0}
-							{@const longDelta = spreadOptions.longOption.delta ?? spreadOptions.longOption.greeks?.delta ?? 0}
-							{@const shortTheta = spreadOptions.shortOption.greeks?.theta ?? 0}
-							{@const longTheta = spreadOptions.longOption.greeks?.theta ?? 0}
-							{@const netDelta = (longDelta - shortDelta) * quantity}
-							{@const netTheta = (longTheta - shortTheta) * quantity}
-							
-							{#if shortDelta !== 0 || longDelta !== 0}
-							<div class="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-								<h3 class="text-lg font-semibold mb-3 text-gray-900">📊 Net Greeks (for {quantity} spread{quantity > 1 ? 's' : ''})</h3>
-								<div class="grid grid-cols-2 gap-4">
-									<div>
-										<p class="text-sm text-gray-600">Net Delta</p>
-										<p class="text-xl font-bold {netDelta >= 0 ? 'text-green-600' : 'text-red-600'}">
-											{netDelta.toFixed(3)}
-										</p>
-										<p class="text-xs text-gray-500 mt-1">
-											Long: {longDelta.toFixed(3)} - Short: {shortDelta.toFixed(3)}
-										</p>
-									</div>
-									<div>
-										<p class="text-sm text-gray-600">Net Theta</p>
-										<p class="text-xl font-bold {netTheta >= 0 ? 'text-green-600' : 'text-red-600'}">
-											{netTheta.toFixed(2)} /day
-										</p>
-										<p class="text-xs text-gray-500 mt-1">
-											Long: {longTheta.toFixed(2)} - Short: {shortTheta.toFixed(2)}
-										</p>
-									</div>
-								</div>
-							</div>
-						{/if}
-
-						{#if spreadOptions.shortOption.ask && spreadOptions.longOption.bid}
-							<div class="mt-4 p-4 bg-gray-50 rounded-lg">
-								<p class="text-sm text-gray-600">Estimated Net Cost (per spread)</p>
-								<p class="text-xl font-bold text-gray-900">
-									{formatCurrency((spreadOptions.longOption.ask || 0) - (spreadOptions.shortOption.bid || 0))}
-								</p>
-								<p class="text-xs text-gray-500 mt-1">
-									(Buy long at {formatCurrency(spreadOptions.longOption.ask || 0)} - Sell short at {formatCurrency(spreadOptions.shortOption.bid || 0)})
+						<!-- Key Metrics Grid -->
+						<div class="grid grid-cols-4 gap-3 mb-3">
+							<div class="bg-blue-50 rounded-lg p-2 border border-blue-200">
+								<p class="text-xs text-gray-600 mb-1">Net Delta</p>
+								<p class="text-lg font-bold {netDelta >= 0 ? 'text-green-600' : 'text-red-600'}">
+									{netDelta >= 0 ? '+' : ''}{netDelta.toFixed(2)}
 								</p>
 							</div>
-						{/if}
+							<div class="bg-purple-50 rounded-lg p-2 border border-purple-200">
+								<p class="text-xs text-gray-600 mb-1">Net Theta</p>
+								<p class="text-lg font-bold {netTheta >= 0 ? 'text-green-600' : 'text-red-600'}">
+									{netTheta >= 0 ? '+' : ''}{netTheta.toFixed(1)}/day
+								</p>
+							</div>
+							<div class="bg-gray-50 rounded-lg p-2 border border-gray-200">
+								<p class="text-xs text-gray-600 mb-1">Short Exp</p>
+								<p class="text-sm font-semibold text-gray-900">{spreadOptions.shortOption.daysUntil}d</p>
+							</div>
+							<div class="bg-gray-50 rounded-lg p-2 border border-gray-200">
+								<p class="text-xs text-gray-600 mb-1">Long Exp</p>
+								<p class="text-sm font-semibold text-gray-900">{spreadOptions.longOption.daysUntil}d</p>
+							</div>
+						</div>
 
-						<!-- Next Day Spread Estimate -->
+						<!-- Tomorrow's Value Estimate (Compact) -->
 						{#if spreadOptions.nextDaySpread && spreadOptions.estimatedOvernightGain !== null && spreadOptions.estimatedOvernightGain !== undefined}
-							<div class="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
-								<h3 class="text-lg font-semibold mb-3 text-gray-900">🔮 Tomorrow's Value Estimate</h3>
-								<p class="text-sm text-gray-600 mb-3">
-									Estimating tomorrow's value by comparing to today's {(spreadOptions.nextDaySpread.shortOption.daysUntil || 'N/A')}/{spreadOptions.nextDaySpread.longOption.daysUntil || 'N/A'} calendar spread
-								</p>
-								<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-									<div>
-										<p class="text-sm text-gray-600">Current Spread Cost</p>
-										<p class="text-lg font-semibold text-gray-900">
-											{spreadOptions.currentSpreadCost !== null ? formatCurrency(spreadOptions.currentSpreadCost) : 'N/A'}
-										</p>
-										<p class="text-xs text-gray-500 mt-1">Cost to open spread</p>
-									</div>
-									<div>
-										<p class="text-sm text-gray-600">Estimated Tomorrow Value</p>
-										<p class="text-lg font-semibold text-gray-900">
-											{spreadOptions.estimatedTomorrowValue !== null ? formatCurrency(spreadOptions.estimatedTomorrowValue) : 'N/A'}
-										</p>
-										<p class="text-xs text-gray-500 mt-1">Based on {(spreadOptions.nextDaySpread.shortOption.daysUntil || 'N/A')}/{spreadOptions.nextDaySpread.longOption.daysUntil || 'N/A'} spread today</p>
-									</div>
-									<div>
-										<p class="text-sm text-gray-600">Estimated Overnight Gain</p>
-										<p class="text-xl font-bold {spreadOptions.estimatedOvernightGain >= 0 ? 'text-green-600' : 'text-red-600'}">
-											{spreadOptions.estimatedOvernightGain >= 0 ? '+' : ''}{formatCurrency(spreadOptions.estimatedOvernightGain)}
-										</p>
-										<p class="text-xs text-gray-500 mt-1">
-											For {quantity} spread{quantity > 1 ? 's' : ''}: {formatCurrency(spreadOptions.estimatedOvernightGain * quantity)}
-										</p>
-									</div>
-								</div>
-								<div class="mt-3 pt-3 border-t border-green-300">
-									<p class="text-xs text-gray-500">
-										⚠️ Assumes underlying price and volatility remain unchanged. Based on current market prices of {(spreadOptions.nextDaySpread.shortOption.daysUntil || 'N/A')}/{spreadOptions.nextDaySpread.longOption.daysUntil || 'N/A'} calendar spread trading today.
+							<div class="bg-green-50 rounded-lg p-3 border border-green-200">
+								<div class="flex items-center justify-between mb-2">
+									<h3 class="text-sm font-semibold text-gray-900">🔮 Tomorrow's Estimate</h3>
+									<p class="text-xs text-gray-600">
+										Based on {(spreadOptions.nextDaySpread.shortOption.daysUntil || 'N/A')}/{spreadOptions.nextDaySpread.longOption.daysUntil || 'N/A'} spread today
 									</p>
 								</div>
+								<div class="grid grid-cols-3 gap-3">
+									<div>
+										<p class="text-xs text-gray-600">Today</p>
+										<p class="text-sm font-semibold text-gray-900">
+											{spreadOptions.currentSpreadCost !== null ? formatCurrency(spreadOptions.currentSpreadCost) : 'N/A'}
+										</p>
+									</div>
+									<div>
+										<p class="text-xs text-gray-600">Tomorrow</p>
+										<p class="text-sm font-semibold text-gray-900">
+											{spreadOptions.estimatedTomorrowValue !== null ? formatCurrency(spreadOptions.estimatedTomorrowValue) : 'N/A'}
+										</p>
+									</div>
+									<div>
+										<p class="text-xs text-gray-600">Gain</p>
+										<p class="text-base font-bold {spreadOptions.estimatedOvernightGain >= 0 ? 'text-green-600' : 'text-red-600'}">
+											{spreadOptions.estimatedOvernightGain >= 0 ? '+' : ''}{formatCurrency(spreadOptions.estimatedOvernightGain * quantity)}
+										</p>
+									</div>
+								</div>
 							</div>
-						{/if}
 						{/if}
 					</div>
 				{/if}
@@ -1839,4 +1811,5 @@
 		</div>
 	</div>
 {/if}
+
 
