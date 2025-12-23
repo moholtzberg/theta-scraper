@@ -673,6 +673,8 @@
 			}
 
 			// Calculate total net delta and theta
+			// Theta from Tradier API is per share, so multiply by 100 (shares per contract) and then by quantity (number of contracts)
+			// Delta is already per share, so multiply by 100 and then by quantity
 			let totalDelta = 0;
 			let totalTheta = 0;
 
@@ -684,15 +686,16 @@
 						const delta = parseFloat(greekData.delta || 0);
 						const theta = parseFloat(greekData.theta || 0);
 						
-						totalDelta += delta * quantity;
-						totalTheta += theta * quantity;
+						// Delta and theta are per share, so multiply by 100 (shares per contract) and then by quantity
+						totalDelta += delta * 100 * quantity;
+						totalTheta += theta * 100 * quantity; // Theta in dollars per day
 					}
 				}
 			}
 
 			portfolioGreeks = {
 				netDelta: totalDelta,
-				netTheta: totalTheta,
+				netTheta: totalTheta, // This is now in dollars per day
 				loading: false
 			};
 		} catch (err) {
@@ -1212,7 +1215,7 @@
 					<div class="bg-purple-50 rounded-lg p-2 border border-purple-200 flex-1">
 						<p class="text-xs text-gray-600">Net Theta</p>
 						<p class="text-lg font-bold {portfolioGreeks.netTheta >= 0 ? 'text-green-600' : 'text-red-600'}">
-							{portfolioGreeks.netTheta.toFixed(1)}/day
+							{formatCurrency(portfolioGreeks.netTheta)}/day
 						</p>
 					</div>
 				{/if}
@@ -1346,10 +1349,10 @@
 				{#if spreadOptions}
 					{@const shortDelta = spreadOptions.shortOption.delta ?? spreadOptions.shortOption.greeks?.delta ?? 0}
 					{@const longDelta = spreadOptions.longOption.delta ?? spreadOptions.longOption.greeks?.delta ?? 0}
-					{@const shortTheta = spreadOptions.shortOption.greeks?.theta ?? 0}
-					{@const longTheta = spreadOptions.longOption.greeks?.theta ?? 0}
+					{@const shortTheta = (spreadOptions.shortOption.greeks?.theta ?? 0) * 100} // Convert per-share to per-contract (dollars)
+					{@const longTheta = (spreadOptions.longOption.greeks?.theta ?? 0) * 100} // Convert per-share to per-contract (dollars)
 					{@const netDelta = (longDelta - shortDelta) * quantity}
-					{@const netTheta = (longTheta - shortTheta) * quantity}
+					{@const netTheta = (longTheta - shortTheta) * quantity} // Dollars per day
 					{@const netCost = (spreadOptions.longOption.ask || 0) - (spreadOptions.shortOption.bid || 0)}
 					
 					<div class="bg-white rounded-lg shadow-md p-4 mb-4">
@@ -1528,7 +1531,7 @@
 							<div class="bg-purple-50 rounded-lg p-2 border border-purple-200">
 								<p class="text-xs text-gray-600 mb-1">Net Theta</p>
 								<p class="text-lg font-bold {netTheta >= 0 ? 'text-green-600' : 'text-red-600'}">
-									{netTheta >= 0 ? '+' : ''}{netTheta.toFixed(1)}/day
+									{netTheta >= 0 ? '+' : ''}{formatCurrency(netTheta)}/day
 								</p>
 							</div>
 							<div class="bg-gray-50 rounded-lg p-2 border border-gray-200">
@@ -1848,10 +1851,10 @@
 						<div>
 							<p class="text-sm text-gray-600">Net Theta</p>
 							<p class="text-xl font-bold {previewData.greeks.netTheta >= 0 ? 'text-green-600' : 'text-red-600'}">
-								{previewData.greeks.netTheta.toFixed(2)} /day
+								{formatCurrency(previewData.greeks.netTheta)} /day
 							</p>
 							<p class="text-xs text-gray-500 mt-1">
-								Short: {previewData.greeks.shortTheta.toFixed(2)} | Long: {previewData.greeks.longTheta.toFixed(2)}
+								Short: {formatCurrency(previewData.greeks.shortTheta)} | Long: {formatCurrency(previewData.greeks.longTheta)}
 							</p>
 						</div>
 					</div>
@@ -1882,17 +1885,17 @@
 						<div class="grid grid-cols-3 gap-4">
 							<div>
 								<p class="text-sm text-gray-600">Current Net Theta</p>
-								<p class="font-semibold text-lg">{previewData.positionImpact.currentNetTheta.toFixed(2)} /day</p>
+								<p class="font-semibold text-lg">{formatCurrency(previewData.positionImpact.currentNetTheta)} /day</p>
 							</div>
 							<div class="text-center">
 								<p class="text-sm text-gray-600">Change</p>
 								<p class="font-semibold text-lg {previewData.positionImpact.thetaChange >= 0 ? 'text-green-600' : 'text-red-600'}">
-									{previewData.positionImpact.thetaChange >= 0 ? '+' : ''}{previewData.positionImpact.thetaChange.toFixed(2)} /day
+									{previewData.positionImpact.thetaChange >= 0 ? '+' : ''}{formatCurrency(previewData.positionImpact.thetaChange)} /day
 								</p>
 							</div>
 							<div>
 								<p class="text-sm text-gray-600">New Net Theta</p>
-								<p class="font-semibold text-lg">{previewData.positionImpact.newNetTheta.toFixed(2)} /day</p>
+								<p class="font-semibold text-lg">{formatCurrency(previewData.positionImpact.newNetTheta)} /day</p>
 							</div>
 						</div>
 					</div>
