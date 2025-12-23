@@ -629,6 +629,8 @@ function erf(x) {
 
 /**
  * Find options closest to target delta
+ * For calls: targetDelta is positive (e.g., 0.35)
+ * For puts: targetDelta is positive but we look for negative delta (e.g., -0.35)
  */
 export function findOptionsByDelta(options, targetDelta, optionType = 'call') {
 	if (!options || !options.options || !options.options.option) {
@@ -639,15 +641,30 @@ export function findOptionsByDelta(options, targetDelta, optionType = 'call') {
 		? options.options.option 
 		: [options.options.option];
 
+	// For puts, we're looking for negative delta
+	// For calls, we're looking for positive delta
+	const targetDeltaForType = optionType === 'put' ? -targetDelta : targetDelta;
+
 	// Filter by option type and find closest to target delta
 	const filtered = optionList
 		.filter(opt => opt.option_type === optionType)
-		.map(opt => ({
-			...opt,
-			delta: parseFloat(opt.greeks?.delta || 0),
-			deltaDiff: Math.abs(parseFloat(opt.greeks?.delta || 0) - targetDelta)
-		}))
-		.filter(opt => opt.delta > 0) // Only options with valid delta
+		.map(opt => {
+			const delta = parseFloat(opt.greeks?.delta || 0);
+			return {
+				...opt,
+				delta: delta,
+				deltaDiff: Math.abs(delta - targetDeltaForType)
+			};
+		})
+		.filter(opt => {
+			// For calls: delta should be positive
+			// For puts: delta should be negative
+			if (optionType === 'call') {
+				return opt.delta > 0;
+			} else {
+				return opt.delta < 0;
+			}
+		})
 		.sort((a, b) => a.deltaDiff - b.deltaDiff);
 
 	return filtered.length > 0 ? filtered[0] : null;

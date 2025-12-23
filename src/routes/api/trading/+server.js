@@ -237,6 +237,15 @@ export async function POST({ request }) {
 				const spreadOptions = await findCalendarSpreadOptions(tradierClient, symbol, currentPrice, delta, normalizedOptionType);
 				const preview = await createCalendarSpreadOrder(tradierClient, accountId, symbol, spreadOptions, quantity, delta, normalizedOptionType, true);
 				
+				// Get account balances for buying power calculation
+				let balances = null;
+				try {
+					const balancesResponse = await tradierClient.getAccountBalances(accountId);
+					balances = balancesResponse?.balances;
+				} catch (err) {
+					console.warn('Could not fetch account balances for preview:', err.message);
+				}
+				
 				// Calculate net greeks and position impact
 				const shortDelta = parseFloat(spreadOptions.shortOption.greeks?.delta || 0);
 				const longDelta = parseFloat(spreadOptions.longOption.greeks?.delta || 0);
@@ -287,9 +296,35 @@ export async function POST({ request }) {
 				const newNetTheta = currentNetTheta + netTheta;
 				
 				// Estimate net proceeds based on theta
-				// Theta is typically per day, so estimate for the short expiration period
+				// Theta from Tradier is per contract per day (in dollars)
+				// netTheta already includes quantity multiplier
 				const shortDaysUntil = spreadOptions.shortOption.daysUntil || 3;
-				const estimatedThetaProceeds = netTheta * shortDaysUntil;
+				
+				// Calculate buying power effect and max loss
+				// For calendar spreads: net debit = cost of long option - premium from short option
+				const shortBid = parseFloat(spreadOptions.shortOption.bid || 0);
+				const longAsk = parseFloat(spreadOptions.longOption.ask || 0);
+				const netDebit = (longAsk - shortBid) * quantity * 100; // Options are per 100 shares
+				
+				// Buying power effect: net debit reduces buying power
+				const buyingPowerEffect = -netDebit;
+				
+				// Max loss for calendar spread: net debit paid (if both expire worthless)
+				// This is the maximum loss scenario
+				const maxLoss = netDebit;
+				
+				// Get current buying power from balances
+				let currentBuyingPower = null;
+				let newBuyingPower = null;
+				if (balances?.margin?.option_buying_power !== undefined) {
+					currentBuyingPower = parseFloat(balances.margin.option_buying_power || 0);
+					newBuyingPower = currentBuyingPower + buyingPowerEffect;
+				}
+				
+				// Calculate estimated theta revenue
+				// netTheta is already multiplied by quantity, and Tradier theta is per contract per day in dollars
+				// So: netTheta (total $/day) * days = total theta revenue
+				const estimatedThetaRevenue = netTheta * shortDaysUntil;
 				
 				return json({ 
 					preview, 
@@ -314,7 +349,15 @@ export async function POST({ request }) {
 						thetaChange: netTheta
 					},
 					estimatedThetaProceeds,
+					estimatedThetaRevenue,
 					shortDaysUntil,
+					buyingPower: {
+						current: currentBuyingPower,
+						effect: buyingPowerEffect,
+						new: newBuyingPower
+					},
+					maxLoss,
+					netDebit,
 					message: 'Order preview generated'
 				});
 			}

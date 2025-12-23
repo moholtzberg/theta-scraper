@@ -62,18 +62,33 @@ export async function findCalendarSpreadOptions(tradierClient, symbol, currentPr
 			throw new Error('Could not find suitable expirations for calendar spread');
 		}
 
-		// Get options chains for both expirations (with greeks for accurate delta matching)
+		// Get options chains for both expirations (with greeks)
 		const [shortChainResponse, longChainResponse] = await Promise.all([
 			tradierClient.getOptionsChain(symbol, shortExpiration, { greeks: true }),
 			tradierClient.getOptionsChain(symbol, longExpiration, { greeks: true })
 		]);
 
-		// Find options by target delta and type
+		// Find options by target delta and type for short expiration first
 		const shortOption = findOptionsByDelta(shortChainResponse, targetDelta, optionType);
-		const longOption = findOptionsByDelta(longChainResponse, targetDelta, optionType);
+		
+		if (!shortOption) {
+			throw new Error(`Could not find ${(targetDelta * 100).toFixed(0)} delta ${optionType} options for short expiration`);
+		}
 
-		if (!shortOption || !longOption) {
-			throw new Error(`Could not find ${(targetDelta * 100).toFixed(0)} delta ${optionType} options`);
+		// Use the same strike price for the long expiration
+		const shortStrike = parseFloat(shortOption.strike || 0);
+		
+		// Find option with same strike in long expiration
+		const longOptionList = longChainResponse?.options?.option;
+		const longOptions = Array.isArray(longOptionList) ? longOptionList : (longOptionList ? [longOptionList] : []);
+		
+		const longOption = longOptions.find(opt => 
+			opt.option_type === optionType && 
+			Math.abs(parseFloat(opt.strike || 0) - shortStrike) < 0.01 // Allow small floating point differences
+		);
+
+		if (!longOption) {
+			throw new Error(`Could not find ${optionType} option with strike ${shortStrike} for long expiration`);
 		}
 
 		return {

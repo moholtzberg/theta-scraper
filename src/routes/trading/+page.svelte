@@ -1549,28 +1549,110 @@
 				</div>
 			{/if}
 
-			<!-- Theta Proceeds Estimate -->
-			{#if previewData.estimatedThetaProceeds !== undefined}
+			<!-- Risk & Capital Metrics -->
+			<div class="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+				<!-- Buying Power Effect -->
+				{#if previewData.buyingPower}
+					<div class="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+						<h3 class="text-lg font-semibold mb-3 text-gray-900">💳 Buying Power Effect</h3>
+						<div class="space-y-2">
+							{#if previewData.buyingPower.current !== null}
+								<div>
+									<p class="text-sm text-gray-600">Current Buying Power</p>
+									<p class="text-lg font-semibold">{formatCurrency(previewData.buyingPower.current)}</p>
+								</div>
+							{/if}
+							<div>
+								<p class="text-sm text-gray-600">Effect</p>
+								<p class="text-xl font-bold {previewData.buyingPower.effect >= 0 ? 'text-green-600' : 'text-red-600'}">
+									{previewData.buyingPower.effect >= 0 ? '+' : ''}{formatCurrency(previewData.buyingPower.effect)}
+								</p>
+							</div>
+							{#if previewData.buyingPower.new !== null}
+								<div class="pt-2 border-t border-indigo-300">
+									<p class="text-sm text-gray-600">New Buying Power</p>
+									<p class="text-lg font-bold">{formatCurrency(previewData.buyingPower.new)}</p>
+								</div>
+							{/if}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Max Loss -->
+				{#if previewData.maxLoss !== undefined}
+					<div class="p-4 bg-red-50 rounded-lg border border-red-200">
+						<h3 class="text-lg font-semibold mb-3 text-gray-900">⚠️ Maximum Loss</h3>
+						<div class="space-y-2">
+							<div>
+								<p class="text-sm text-gray-600">Net Debit</p>
+								<p class="text-xl font-bold text-red-600">
+									{formatCurrency(previewData.netDebit || previewData.maxLoss)}
+								</p>
+							</div>
+							<div>
+								<p class="text-sm text-gray-600">Max Loss</p>
+								<p class="text-2xl font-bold text-red-700">
+									{formatCurrency(previewData.maxLoss)}
+								</p>
+							</div>
+							<p class="text-xs text-gray-500 mt-1">
+								If both options expire worthless
+							</p>
+						</div>
+					</div>
+				{/if}
+			</div>
+
+			<!-- Theta Revenue Estimate -->
+			{#if previewData.estimatedThetaRevenue !== undefined}
 				<div class="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
-					<h3 class="text-lg font-semibold mb-3 text-gray-900">💰 Estimated Theta Proceeds</h3>
+					<h3 class="text-lg font-semibold mb-3 text-gray-900">💰 Estimated Theta Revenue</h3>
 					<div class="space-y-2">
 						<div>
 							<p class="text-sm text-gray-600">Net Theta per Day</p>
 							<p class="text-xl font-bold text-green-600">
 								{formatCurrency(previewData.greeks?.netTheta || 0)} /day
 							</p>
+							<p class="text-xs text-gray-500">For {quantity} spread{quantity > 1 ? 's' : ''}</p>
 						</div>
 						<div>
 							<p class="text-sm text-gray-600">Days Until Short Expiration</p>
 							<p class="text-lg font-semibold">{previewData.shortDaysUntil || 3} days</p>
 						</div>
 						<div class="pt-2 border-t border-green-300">
-							<p class="text-sm text-gray-600">Estimated Total Theta Proceeds</p>
+							<p class="text-sm text-gray-600">Estimated Total Theta Revenue</p>
 							<p class="text-2xl font-bold text-green-700">
-								{formatCurrency(previewData.estimatedThetaProceeds)}
+								{formatCurrency(previewData.estimatedThetaRevenue)}
 							</p>
 							<p class="text-xs text-gray-500 mt-1">
 								Based on {previewData.shortDaysUntil || 3} days × {formatCurrency(previewData.greeks?.netTheta || 0)}/day
+							</p>
+						</div>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Overall Net Delta Summary -->
+			{#if previewData.positionImpact}
+				<div class="mb-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+					<h3 class="text-lg font-semibold mb-3 text-gray-900">📈 Overall Net Delta Summary</h3>
+					<div class="grid grid-cols-3 gap-4">
+						<div>
+							<p class="text-sm text-gray-600">Current Overall Net Delta</p>
+							<p class="text-xl font-bold {previewData.positionImpact.currentNetDelta >= 0 ? 'text-green-600' : 'text-red-600'}">
+								{previewData.positionImpact.currentNetDelta.toFixed(3)}
+							</p>
+						</div>
+						<div class="text-center">
+							<p class="text-sm text-gray-600">Spread Net Delta</p>
+							<p class="text-xl font-bold {previewData.greeks?.netDelta >= 0 ? 'text-green-600' : 'text-red-600'}">
+								{previewData.greeks?.netDelta >= 0 ? '+' : ''}{previewData.greeks?.netDelta?.toFixed(3) || 0}
+							</p>
+						</div>
+						<div>
+							<p class="text-sm text-gray-600">New Overall Net Delta</p>
+							<p class="text-xl font-bold {previewData.positionImpact.newNetDelta >= 0 ? 'text-green-600' : 'text-red-600'}">
+								{previewData.positionImpact.newNetDelta.toFixed(3)}
 							</p>
 						</div>
 					</div>
