@@ -1089,7 +1089,9 @@
 									</div>
 									<div>
 										<p class="text-sm text-gray-600">Delta</p>
-										<p class="font-medium">{rollData.spreadOptions.longOption.delta?.toFixed(3) || 'N/A'}</p>
+										<p class="font-medium">
+											{(rollData.spreadOptions.longOption.delta ?? rollData.spreadOptions.longOption.greeks?.delta)?.toFixed(3) || 'N/A'}
+										</p>
 									</div>
 									<div>
 										<p class="text-sm text-gray-600">Bid/Ask</p>
@@ -1370,7 +1372,9 @@
 							</div>
 							<div>
 								<p class="text-sm text-gray-600">Delta</p>
-								<p class="font-medium">{spreadOptions.longOption.delta?.toFixed(3) || 'N/A'}</p>
+								<p class="font-medium">
+									{(spreadOptions.longOption.delta ?? spreadOptions.longOption.greeks?.delta)?.toFixed(3) || 'N/A'}
+								</p>
 							</div>
 							<div>
 								<p class="text-sm text-gray-600">Bid/Ask</p>

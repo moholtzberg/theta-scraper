@@ -82,14 +82,23 @@ export async function findCalendarSpreadOptions(tradierClient, symbol, currentPr
 		const longOptionList = longChainResponse?.options?.option;
 		const longOptions = Array.isArray(longOptionList) ? longOptionList : (longOptionList ? [longOptionList] : []);
 		
-		const longOption = longOptions.find(opt => 
+		const longOptionRaw = longOptions.find(opt => 
 			opt.option_type === optionType && 
 			Math.abs(parseFloat(opt.strike || 0) - shortStrike) < 0.01 // Allow small floating point differences
 		);
 
-		if (!longOption) {
+		if (!longOptionRaw) {
 			throw new Error(`Could not find ${optionType} option with strike ${shortStrike} for long expiration`);
 		}
+
+		// Extract delta from greeks (same as findOptionsByDelta does)
+		const longDelta = parseFloat(longOptionRaw.greeks?.delta || 0);
+		const longOption = {
+			...longOptionRaw,
+			delta: longDelta, // Add delta property for consistency with shortOption
+			expiration: longExpiration,
+			daysUntil: getTradingDaysUntilExpiration(longExpiration)
+		};
 
 		return {
 			shortOption: {
@@ -97,11 +106,7 @@ export async function findCalendarSpreadOptions(tradierClient, symbol, currentPr
 				expiration: shortExpiration,
 				daysUntil: getTradingDaysUntilExpiration(shortExpiration)
 			},
-			longOption: {
-				...longOption,
-				expiration: longExpiration,
-				daysUntil: getTradingDaysUntilExpiration(longExpiration)
-			},
+			longOption: longOption,
 			shortExpiration,
 			longExpiration
 		};
