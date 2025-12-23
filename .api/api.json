@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "apis": [
+    {
+      "identifier": "tradier",
+      "source": "@tradier/v1.0#1fsnwl4tamidjpn9i",
+      "integrity": "sha512-GC12ucRCrGrEcK+Ksw/Gd2ThAX3Cd6/txjslJEnxOMaM2FbLJYTp3C0Ph55gIpqWsECqj3ugzs6/DA12Ue7Fgg==",
+      "installerVersion": "6.1.3"
+    }
+  ]
+}
