@@ -228,7 +228,10 @@ export async function POST({ request }) {
 								delta: parseFloat(quote.greeks.delta || 0),
 								theta: parseFloat(quote.greeks.theta || 0),
 								gamma: parseFloat(quote.greeks.gamma || 0),
-								vega: parseFloat(quote.greeks.vega || 0)
+								vega: parseFloat(quote.greeks.vega || 0),
+								bid: parseFloat(quote.bid || 0),
+								ask: parseFloat(quote.ask || 0),
+								last: parseFloat(quote.last || 0)
 							};
 						}
 					}
@@ -237,6 +240,30 @@ export async function POST({ request }) {
 				} catch (err) {
 					console.error('Error fetching position greeks:', err);
 					return json({ error: err.message, greeks: {} });
+				}
+			}
+
+			case 'get_position_quotes': {
+				// Get quotes for multiple position symbols (without greeks, faster)
+				const { symbols } = body;
+				if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
+					return json({ quotes: [] });
+				}
+
+				try {
+					// Fetch quotes for all symbols
+					const quotesResponse = await tradierClient.getQuotes(symbols);
+					const quotes = quotesResponse?.quotes?.quote;
+					
+					if (!quotes) {
+						return json({ quotes: [] });
+					}
+
+					const quoteList = Array.isArray(quotes) ? quotes : [quotes];
+					return json({ quotes: quoteList });
+				} catch (err) {
+					console.error('Error fetching position quotes:', err);
+					return json({ error: err.message, quotes: [] });
 				}
 			}
 

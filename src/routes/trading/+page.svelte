@@ -439,8 +439,9 @@
 					setupPositionStreaming();
 				}
 				
-				// Automatically find roll options for existing positions
+				// Fetch initial quotes for positions to populate market values
 				if (positions.length > 0) {
+					await fetchInitialPositionQuotes();
 					await findRollOptionsForPositions();
 					await calculatePortfolioGreeks();
 				} else {
@@ -452,6 +453,81 @@
 			console.error('Error loading data:', err);
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function fetchInitialPositionQuotes() {
+		if (positions.length === 0) return;
+
+		try {
+			// Get all position symbols
+			const positionSymbols = positions
+				.map(p => p.symbol)
+				.filter(s => s);
+
+			if (positionSymbols.length === 0) return;
+
+			// Fetch quotes with greeks for all positions
+			const response = await fetch('/api/trading', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					action: 'get_position_greeks',
+					symbols: positionSymbols
+				})
+			});
+
+			const data = await response.json();
+			
+			if (data.error || !data.greeks) {
+				console.warn('Error fetching initial position quotes:', data.error);
+				return;
+			}
+
+			// Update positions with initial quotes and market values
+			for (const [symbol, greekData] of Object.entries(data.greeks)) {
+				const positionIndex = positions.findIndex(p => p.symbol === symbol);
+				if (positionIndex === -1) continue;
+
+				const position = positions[positionIndex];
+				const quantity = parseFloat(position.quantity || 0);
+				const costBasis = parseFloat(position.cost_basis || 0);
+				
+				// Get price from quote data (we need to fetch full quotes for bid/ask/last)
+				// For now, use mid price if available, or estimate from greeks
+				// We'll update this with streaming quotes
+				
+				// Store the quote data for later use
+				positionQuotes[symbol] = {
+					bid: greekData.bid,
+					ask: greekData.ask,
+					last: greekData.last,
+					delta: greekData.delta,
+					theta: greekData.theta
+				};
+			}
+
+			// Also fetch full quotes to get bid/ask/last prices
+			const quotesResponse = await fetch('/api/trading', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					action: 'get_position_quotes',
+					symbols: positionSymbols
+				})
+			});
+
+			const quotesData = await quotesResponse.json();
+			if (quotesData.quotes) {
+				const quoteList = Array.isArray(quotesData.quotes) ? quotesData.quotes : [quotesData.quotes];
+				for (const quote of quoteList) {
+					if (quote.symbol) {
+						updatePositionFromQuote(quote.symbol, quote);
+					}
+				}
+			}
+		} catch (err) {
+			console.error('Error fetching initial position quotes:', err);
 		}
 	}
 
