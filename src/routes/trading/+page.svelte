@@ -994,250 +994,214 @@
 	<title>{symbol} Calendar Spread Trading</title>
 </svelte:head>
 
-<div class="min-h-screen bg-gray-50 py-8">
-	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-		<!-- Header -->
-		<div class="bg-white rounded-lg shadow-md p-6 mb-6">
-			<h1 class="text-3xl font-bold text-gray-900 mb-2">📈 {symbol} {(targetDelta * 100).toFixed(0)} Delta {optionType.charAt(0).toUpperCase() + optionType.slice(1)} Calendar Spread Trader</h1>
-			<p class="text-gray-600">Automated calendar spread trading with 3/4 day expiration</p>
-		</div>
-
-		<!-- Error Display -->
-		{#if error}
-			<div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6">
-				<p class="font-semibold">Error:</p>
-				<p>{error}</p>
-			</div>
-		{/if}
-
-		<!-- Warning Display -->
-		{#if warning}
-			<div class="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg mb-6">
-				<p class="font-semibold">⚠️ Warning:</p>
-				<p>{warning}</p>
-				<p class="text-sm mt-2">You can still use the app to find and analyze spreads, but trading actions require a valid Tradier account.</p>
-			</div>
-		{/if}
-
-		<!-- Account Info -->
-		{#if account}
-			<div class="bg-white rounded-lg shadow-md p-6 mb-6">
-				<h2 class="text-xl font-semibold text-gray-900 mb-4">Account Information</h2>
-				<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-					<div>
-						<p class="text-sm text-gray-600">Account Number</p>
-						<p class="text-lg font-semibold">{account.account_number || 'N/A'}</p>
-					</div>
-					<div>
-						<p class="text-sm text-gray-600">Account Type</p>
-						<p class="text-lg font-semibold">{account.type || 'N/A'}</p>
-					</div>
-					<div>
-						<p class="text-sm text-gray-600">Status</p>
-						<p class="text-lg font-semibold">{account.status || 'N/A'}</p>
-					</div>
-				</div>
-				
-				{#if balances}
-					<div class="border-t border-gray-200 pt-4 mt-4">
-						<h3 class="text-lg font-semibold text-gray-900 mb-4">Account Balances</h3>
-						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-							<div>
-								<p class="text-sm text-gray-600">Total Equity</p>
-								<p class="text-xl font-bold text-gray-900">{formatCurrency(balances.total_equity || 0)}</p>
-							</div>
-							<div>
-								<p class="text-sm text-gray-600">Total Cash</p>
-								<p class="text-xl font-bold text-gray-900">{formatCurrency(balances.total_cash || 0)}</p>
-							</div>
-							<div>
-								<p class="text-sm text-gray-600">Market Value</p>
-								<p class="text-xl font-bold text-gray-900">{formatCurrency(balances.market_value || 0)}</p>
-							</div>
-							<div>
-								<p class="text-sm text-gray-600">Open P&L</p>
-								<p class="text-xl font-bold {parseFloat(balances.open_pl || 0) >= 0 ? 'text-green-600' : 'text-red-600'}">
-									{formatCurrency(balances.open_pl || 0)}
-								</p>
-							</div>
-							<div>
-								<p class="text-sm text-gray-600">Long Market Value</p>
-								<p class="text-lg font-semibold text-gray-900">{formatCurrency(balances.long_market_value || 0)}</p>
-							</div>
-							<div>
-								<p class="text-sm text-gray-600">Short Market Value</p>
-								<p class="text-lg font-semibold text-gray-900">{formatCurrency(balances.short_market_value || 0)}</p>
-							</div>
-							<div>
-								<p class="text-sm text-gray-600">Option Long Value</p>
-								<p class="text-lg font-semibold text-gray-900">{formatCurrency(balances.option_long_value || 0)}</p>
-							</div>
-							<div>
-								<p class="text-sm text-gray-600">Option Short Value</p>
-								<p class="text-lg font-semibold text-gray-900">{formatCurrency(balances.option_short_value || 0)}</p>
-							</div>
-							{#if balances.account_type === 'margin'}
-								<div>
-									<p class="text-sm text-gray-600">Current Requirement</p>
-									<p class="text-lg font-semibold text-gray-900">{formatCurrency(balances.current_requirement || 0)}</p>
-								</div>
-								<div>
-									<p class="text-sm text-gray-600">Option Requirement</p>
-									<p class="text-lg font-semibold text-gray-900">{formatCurrency(balances.option_requirement || 0)}</p>
-								</div>
-							{/if}
-							<div>
-								<p class="text-sm text-gray-600">Pending Orders</p>
-								<p class="text-lg font-semibold text-gray-900">{balances.pending_orders_count || 0}</p>
-							</div>
-							<div>
-								<p class="text-sm text-gray-600">Uncleared Funds</p>
-								<p class="text-lg font-semibold text-gray-900">{formatCurrency(balances.uncleared_funds || 0)}</p>
-							</div>
-						</div>
-					</div>
-				{/if}
-			</div>
-		{/if}
-
-		<!-- Current Positions -->
-		<div class="bg-white rounded-lg shadow-md p-6 mb-6">
-			<div class="flex justify-between items-center mb-4">
-				<div class="flex items-center gap-3">
-					<h2 class="text-xl font-semibold text-gray-900">Current Positions</h2>
-					{#if streamingEnabled}
-						<span class="flex items-center gap-2 text-sm text-green-600">
-							<span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-							<span>Live Streaming</span>
-						</span>
-					{/if}
+<div class="min-h-screen bg-gray-50 flex flex-col">
+	<!-- Sticky Header -->
+	<header class="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
+		<div class="px-4 sm:px-6 lg:px-8 py-4">
+			<div class="flex items-center justify-between mb-3">
+				<div>
+					<h1 class="text-2xl font-bold text-gray-900">📈 {symbol} {(targetDelta * 100).toFixed(0)} Delta {optionType.charAt(0).toUpperCase() + optionType.slice(1)} Calendar Spread</h1>
+					<p class="text-sm text-gray-600 mt-1">Automated calendar spread trading with 3/4 day expiration</p>
 				</div>
 				<button
 					onclick={loadData}
 					disabled={loading}
-					class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+					class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-semibold"
 				>
 					{loading ? 'Loading...' : 'Refresh'}
 				</button>
 			</div>
 
-			<!-- Portfolio Greeks Summary -->
-			{#if positions.length > 0}
-				<div class="mb-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
-					<h3 class="text-lg font-semibold mb-3 text-gray-900">📊 Overall Portfolio Greeks</h3>
-					{#if portfolioGreeks.loading}
-						<p class="text-sm text-gray-600">Calculating portfolio greeks...</p>
-					{:else}
-						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-							<div>
-								<p class="text-sm text-gray-600">Total Net Delta</p>
-								<p class="text-2xl font-bold {portfolioGreeks.netDelta >= 0 ? 'text-green-600' : 'text-red-600'}">
-									{portfolioGreeks.netDelta.toFixed(3)}
-								</p>
-								<p class="text-xs text-gray-500 mt-1">
-									Combined delta exposure across all positions
-								</p>
-							</div>
-							<div>
-								<p class="text-sm text-gray-600">Total Net Theta</p>
-								<p class="text-2xl font-bold {portfolioGreeks.netTheta >= 0 ? 'text-green-600' : 'text-red-600'}">
-									{portfolioGreeks.netTheta.toFixed(2)} /day
-								</p>
-								<p class="text-xs text-gray-500 mt-1">
-									Daily theta collection/loss across all positions
-								</p>
-							</div>
-						</div>
-					{/if}
+			<!-- Error/Warning Display -->
+			{#if error}
+				<div class="bg-red-50 border border-red-200 text-red-800 px-3 py-2 rounded-lg mb-2 text-sm">
+					<p class="font-semibold">Error:</p>
+					<p>{error}</p>
 				</div>
 			{/if}
 
-			{#if loading && positions.length === 0}
-				<p class="text-gray-600">Loading positions...</p>
-			{:else if positions.length === 0}
-				<p class="text-gray-600">No positions found</p>
-			{:else}
-				<div class="overflow-x-auto">
-					<table class="min-w-full divide-y divide-gray-200">
-						<thead class="bg-gray-50">
-							<tr>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Symbol</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cost Basis</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date Acquired</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Price</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Market Value</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">P&L</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expiration</th>
-							</tr>
-						</thead>
-						<tbody class="bg-white divide-y divide-gray-200">
-							{#each positions as position}
-								<tr>
-									<td class="px-4 py-3 text-sm font-medium text-gray-900">{position.symbol || 'N/A'}</td>
-									<td class="px-4 py-3 text-sm {parseFloat(position.quantity || 0) < 0 ? 'text-red-600' : 'text-gray-600'} font-semibold">
-										{position.quantity || 'N/A'}
-										{#if parseFloat(position.quantity || 0) < 0}
-											<span class="text-xs text-gray-500 ml-1">(SHORT)</span>
-										{/if}
-									</td>
-									<td class="px-4 py-3 text-sm text-gray-600">{formatCurrency(position.cost_basis || 0)}</td>
-									<td class="px-4 py-3 text-sm text-gray-600">{formatDate(position.date_acquired)}</td>
-									<td class="px-4 py-3 text-sm">
-										<div class="flex items-center gap-2">
-											<span class="font-medium text-gray-900">
-												{position.last_price ? formatCurrency(position.last_price) : (position.bid && position.ask ? `${formatCurrency(position.bid)} / ${formatCurrency(position.ask)}` : 'N/A')}
-											</span>
-											{#if position.last_price && streamingEnabled}
-												<span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-											{/if}
-										</div>
-									</td>
-									<td class="px-4 py-3 text-sm font-semibold text-gray-900">
-										{formatCurrency(position.market_value || 0)}
-									</td>
-									<td class="px-4 py-3 text-sm font-semibold {parseFloat(position.unrealized_pl || 0) >= 0 ? 'text-green-600' : 'text-red-600'}">
-										{formatCurrency(position.unrealized_pl || 0)}
-									</td>
-									<td class="px-4 py-3 text-sm text-gray-600">
-										{position.expiration_date ? formatDate(position.expiration_date) : (position.symbol ? extractExpirationFromSymbol(position.symbol) : 'N/A')}
-									</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
+			{#if warning}
+				<div class="bg-yellow-50 border border-yellow-200 text-yellow-800 px-3 py-2 rounded-lg mb-2 text-sm">
+					<p class="font-semibold">⚠️ Warning:</p>
+					<p>{warning}</p>
 				</div>
 			{/if}
+
+			<!-- Account Summary & Portfolio Greeks -->
+			<div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3 mt-3">
+				{#if balances}
+					<div class="bg-gray-50 rounded-lg p-2">
+						<p class="text-xs text-gray-600">Total Equity</p>
+						<p class="text-lg font-bold text-gray-900">{formatCurrency(balances.total_equity || 0)}</p>
+					</div>
+					<div class="bg-gray-50 rounded-lg p-2">
+						<p class="text-xs text-gray-600">Cash</p>
+						<p class="text-lg font-bold text-gray-900">{formatCurrency(balances.total_cash || 0)}</p>
+					</div>
+					<div class="bg-gray-50 rounded-lg p-2">
+						<p class="text-xs text-gray-600">Market Value</p>
+						<p class="text-lg font-bold text-gray-900">{formatCurrency(balances.market_value || 0)}</p>
+					</div>
+					<div class="bg-gray-50 rounded-lg p-2">
+						<p class="text-xs text-gray-600">Open P&L</p>
+						<p class="text-lg font-bold {parseFloat(balances.open_pl || 0) >= 0 ? 'text-green-600' : 'text-red-600'}">
+							{formatCurrency(balances.open_pl || 0)}
+						</p>
+					</div>
+				{/if}
+				{#if positions.length > 0 && !portfolioGreeks.loading}
+					<div class="bg-purple-50 rounded-lg p-2 border border-purple-200">
+						<p class="text-xs text-gray-600">Net Delta</p>
+						<p class="text-lg font-bold {portfolioGreeks.netDelta >= 0 ? 'text-green-600' : 'text-red-600'}">
+							{portfolioGreeks.netDelta.toFixed(2)}
+						</p>
+					</div>
+					<div class="bg-purple-50 rounded-lg p-2 border border-purple-200">
+						<p class="text-xs text-gray-600">Net Theta</p>
+						<p class="text-lg font-bold {portfolioGreeks.netTheta >= 0 ? 'text-green-600' : 'text-red-600'}">
+							{portfolioGreeks.netTheta.toFixed(1)}/day
+						</p>
+					</div>
+				{/if}
+			</div>
 		</div>
+	</header>
 
-		<!-- Available Roll Options -->
-		{#if Object.keys(rollOptions).length > 0}
-			{#each Object.entries(rollOptions) as [underlying, rollData]}
-				<div class="bg-white rounded-lg shadow-md p-6 mb-6">
-					<div class="flex justify-between items-center mb-4">
-						<div class="flex items-center gap-3">
-							<h2 class="text-xl font-semibold text-gray-900">
-								🔄 Available Roll Options for {underlying}
-							</h2>
-							{#if streamingEnabled && (rollOptionQuotes[rollData.spreadOptions?.shortOption?.symbol] || rollOptionQuotes[rollData.spreadOptions?.longOption?.symbol])}
+	<!-- Main Layout: Sidebars + Center -->
+	<div class="flex-1 flex overflow-hidden">
+		<!-- Left Sidebar: Trading Controls -->
+		<aside class="w-80 bg-white border-r border-gray-200 overflow-y-auto">
+			<div class="p-4">
+				<h2 class="text-lg font-semibold text-gray-900 mb-4">Trading Controls</h2>
+				
+				<div class="space-y-4">
+					<div>
+						<label for="symbol" class="block text-sm font-medium text-gray-700 mb-2">
+							Underlying Symbol
+						</label>
+						<select
+							id="symbol"
+							bind:value={selectedSymbol}
+							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
+						>
+							{#each availableSymbols as sym}
+								<option value={sym.value}>{sym.label}</option>
+							{/each}
+						</select>
+					</div>
+					<div>
+						<label for="targetDelta" class="block text-sm font-medium text-gray-700 mb-2">
+							Target Delta ({(targetDelta * 100).toFixed(0)}%)
+						</label>
+						<input
+							id="targetDelta"
+							type="number"
+							min="0.01"
+							max="0.99"
+							step="0.01"
+							bind:value={targetDelta}
+							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+						/>
+						<p class="text-xs text-gray-500 mt-1">Enter as decimal (0.35 = 35 delta)</p>
+					</div>
+					<div>
+						<label for="optionType" class="block text-sm font-medium text-gray-700 mb-2">
+							Option Type
+						</label>
+						<select
+							id="optionType"
+							bind:value={optionType}
+							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
+						>
+							<option value="call">Call</option>
+							<option value="put">Put</option>
+						</select>
+					</div>
+					<div>
+						<label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">
+							Quantity
+						</label>
+						<input
+							id="quantity"
+							type="number"
+							min="1"
+							bind:value={quantity}
+							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+						/>
+					</div>
+				</div>
+
+				<div class="mt-6 space-y-2">
+					<button
+						onclick={findSpread}
+						disabled={loading || status === 'finding'}
+						class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 font-semibold text-sm"
+					>
+						{status === 'finding' ? 'Finding...' : '🔍 Find Spread'}
+					</button>
+
+					<button
+						onclick={previewSpread}
+						disabled={loading || status === 'previewing' || !spreadOptions}
+						class="w-full px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 disabled:opacity-50 font-semibold text-sm"
+					>
+						{status === 'previewing' ? 'Previewing...' : '👁️ Preview Order'}
+					</button>
+
+					<button
+						onclick={buySpread}
+						disabled={loading || status === 'buying' || !spreadOptions}
+						class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 font-semibold text-sm"
+					>
+						{status === 'buying' ? 'Buying...' : '💰 Buy Spread'}
+					</button>
+
+					<button
+						onclick={rollSpread}
+						disabled={loading || status === 'rolling' || positions.length === 0}
+						class="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 font-semibold text-sm"
+					>
+						{status === 'rolling' ? 'Rolling...' : '🔄 Roll Spread'}
+					</button>
+				</div>
+
+				<!-- Info Section -->
+				<div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs">
+					<h3 class="text-sm font-semibold text-blue-900 mb-2">ℹ️ How It Works</h3>
+					<ul class="list-disc list-inside space-y-1 text-blue-800">
+						<li>Finds {(targetDelta * 100).toFixed(0)} delta {optionType} options</li>
+						<li>3 and 4 day expirations</li>
+						<li>Roll daily to maintain positions</li>
+						<li>Available: SPY, XSP, QQQ, DIA</li>
+					</ul>
+				</div>
+			</div>
+		</aside>
+
+		<!-- Main Center Area: Spread Options -->
+		<main class="flex-1 overflow-y-auto">
+			<div class="p-4">
+
+				<!-- Spread Options Display -->
+				{#if spreadOptions}
+					<div class="bg-white rounded-lg shadow-md p-6 mb-6">
+						<div class="flex items-center gap-3 mb-4">
+							<h2 class="text-xl font-semibold text-gray-900">Available Spread Options</h2>
+							{#if streamingEnabled && (spreadOptionQuotes[spreadOptions.shortOption?.symbol] || spreadOptionQuotes[spreadOptions.longOption?.symbol])}
 								<span class="flex items-center gap-2 text-sm text-green-600">
 									<span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
 									<span>Live Prices</span>
 								</span>
 							{/if}
 						</div>
-						<button
-							onclick={() => rollSpreadForSymbol(underlying, rollData)}
-							disabled={loading || status === 'rolling'}
-							class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 font-semibold"
-						>
-							{status === 'rolling' ? 'Rolling...' : `🔄 Roll ${underlying} Spread`}
-						</button>
-					</div>
+						
+						{#if currentPrice > 0}
+							<div class="mb-4">
+								<p class="text-sm text-gray-600">Current {symbol} Price</p>
+								<p class="text-2xl font-bold text-gray-900">{formatCurrency(currentPrice)}</p>
+							</div>
+						{/if}
 
-					{#if loadingRollOptions[underlying]}
-						<p class="text-gray-600">Finding roll options...</p>
-					{:else if rollData.spreadOptions}
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 							<!-- Short Option -->
 							<div class="border border-gray-200 rounded-lg p-4">
@@ -1245,33 +1209,33 @@
 								<div class="space-y-2">
 									<div>
 										<p class="text-sm text-gray-600">Symbol</p>
-										<p class="font-medium">{rollData.spreadOptions.shortOption.symbol || 'N/A'}</p>
+										<p class="font-medium">{spreadOptions.shortOption.symbol || 'N/A'}</p>
 									</div>
 									<div>
 										<p class="text-sm text-gray-600">Strike</p>
-										<p class="font-medium">{formatCurrency(rollData.spreadOptions.shortOption.strike || 0)}</p>
+										<p class="font-medium">{formatCurrency(spreadOptions.shortOption.strike || 0)}</p>
 									</div>
 									<div>
 										<p class="text-sm text-gray-600">Delta</p>
-										<p class="font-medium">{rollData.spreadOptions.shortOption.delta?.toFixed(3) || 'N/A'}</p>
+										<p class="font-medium">{spreadOptions.shortOption.delta?.toFixed(3) || 'N/A'}</p>
 									</div>
 									<div>
 										<p class="text-sm text-gray-600">Bid/Ask</p>
 										<div class="flex items-center gap-2">
 											<p class="font-medium">
-												{formatCurrency(rollData.spreadOptions.shortOption.bid || 0)} / {formatCurrency(rollData.spreadOptions.shortOption.ask || 0)}
-												{#if rollData.spreadOptions.shortOption.last}
-													<span class="text-xs text-gray-500 ml-2">(Last: {formatCurrency(rollData.spreadOptions.shortOption.last)})</span>
+												{formatCurrency(spreadOptions.shortOption.bid || 0)} / {formatCurrency(spreadOptions.shortOption.ask || 0)}
+												{#if spreadOptions.shortOption.last}
+													<span class="text-xs text-gray-500 ml-2">(Last: {formatCurrency(spreadOptions.shortOption.last)})</span>
 												{/if}
 											</p>
-											{#if rollOptionQuotes[rollData.spreadOptions.shortOption.symbol] && streamingEnabled}
+											{#if spreadOptionQuotes[spreadOptions.shortOption.symbol] && streamingEnabled}
 												<span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
 											{/if}
 										</div>
 									</div>
 									<div>
 										<p class="text-sm text-gray-600">Expiration</p>
-										<p class="font-medium">{formatDate(rollData.spreadOptions.shortExpiration)} ({rollData.spreadOptions.shortOption.daysUntil} days)</p>
+										<p class="font-medium">{formatDate(spreadOptions.shortExpiration)} ({spreadOptions.shortOption.daysUntil} days)</p>
 									</div>
 								</div>
 							</div>
@@ -1282,164 +1246,288 @@
 								<div class="space-y-2">
 									<div>
 										<p class="text-sm text-gray-600">Symbol</p>
-										<p class="font-medium">{rollData.spreadOptions.longOption.symbol || 'N/A'}</p>
+										<p class="font-medium">{spreadOptions.longOption.symbol || 'N/A'}</p>
 									</div>
 									<div>
 										<p class="text-sm text-gray-600">Strike</p>
-										<p class="font-medium">{formatCurrency(rollData.spreadOptions.longOption.strike || 0)}</p>
+										<p class="font-medium">{formatCurrency(spreadOptions.longOption.strike || 0)}</p>
 									</div>
 									<div>
 										<p class="text-sm text-gray-600">Delta</p>
 										<p class="font-medium">
-											{(rollData.spreadOptions.longOption.delta ?? rollData.spreadOptions.longOption.greeks?.delta)?.toFixed(3) || 'N/A'}
+											{(spreadOptions.longOption.delta ?? spreadOptions.longOption.greeks?.delta)?.toFixed(3) || 'N/A'}
 										</p>
 									</div>
 									<div>
 										<p class="text-sm text-gray-600">Bid/Ask</p>
 										<div class="flex items-center gap-2">
 											<p class="font-medium">
-												{formatCurrency(rollData.spreadOptions.longOption.bid || 0)} / {formatCurrency(rollData.spreadOptions.longOption.ask || 0)}
-												{#if rollData.spreadOptions.longOption.last}
-													<span class="text-xs text-gray-500 ml-2">(Last: {formatCurrency(rollData.spreadOptions.longOption.last)})</span>
+												{formatCurrency(spreadOptions.longOption.bid || 0)} / {formatCurrency(spreadOptions.longOption.ask || 0)}
+												{#if spreadOptions.longOption.last}
+													<span class="text-xs text-gray-500 ml-2">(Last: {formatCurrency(spreadOptions.longOption.last)})</span>
 												{/if}
 											</p>
-											{#if rollOptionQuotes[rollData.spreadOptions.longOption.symbol] && streamingEnabled}
+											{#if spreadOptionQuotes[spreadOptions.longOption.symbol] && streamingEnabled}
 												<span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
 											{/if}
 										</div>
 									</div>
 									<div>
 										<p class="text-sm text-gray-600">Expiration</p>
-										<p class="font-medium">{formatDate(rollData.spreadOptions.longExpiration)} ({rollData.spreadOptions.longOption.daysUntil} days)</p>
+										<p class="font-medium">{formatDate(spreadOptions.longExpiration)} ({spreadOptions.longOption.daysUntil} days)</p>
 									</div>
 								</div>
 							</div>
 						</div>
 
-						<!-- Net Greeks Summary for Roll Options -->
-						{#if rollData.spreadOptions}
-							{@const rollShortDelta = rollData.spreadOptions.shortOption.delta ?? rollData.spreadOptions.shortOption.greeks?.delta ?? 0}
-							{@const rollLongDelta = rollData.spreadOptions.longOption.delta ?? rollData.spreadOptions.longOption.greeks?.delta ?? 0}
-							{@const rollShortTheta = rollData.spreadOptions.shortOption.greeks?.theta ?? 0}
-							{@const rollLongTheta = rollData.spreadOptions.longOption.greeks?.theta ?? 0}
-							{@const rollNetDelta = (rollLongDelta - rollShortDelta) * quantity}
-							{@const rollNetTheta = (rollLongTheta - rollShortTheta) * quantity}
+						<!-- Net Greeks Summary -->
+						{#if spreadOptions}
+							{@const shortDelta = spreadOptions.shortOption.delta ?? spreadOptions.shortOption.greeks?.delta ?? 0}
+							{@const longDelta = spreadOptions.longOption.delta ?? spreadOptions.longOption.greeks?.delta ?? 0}
+							{@const shortTheta = spreadOptions.shortOption.greeks?.theta ?? 0}
+							{@const longTheta = spreadOptions.longOption.greeks?.theta ?? 0}
+							{@const netDelta = (longDelta - shortDelta) * quantity}
+							{@const netTheta = (longTheta - shortTheta) * quantity}
 							
-							{#if rollShortDelta !== 0 || rollLongDelta !== 0}
-								<div class="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-									<h3 class="text-lg font-semibold mb-3 text-gray-900">📊 Net Greeks (for {quantity} spread{quantity > 1 ? 's' : ''})</h3>
-									<div class="grid grid-cols-2 gap-4">
-										<div>
-											<p class="text-sm text-gray-600">Net Delta</p>
-											<p class="text-xl font-bold {rollNetDelta >= 0 ? 'text-green-600' : 'text-red-600'}">
-												{rollNetDelta.toFixed(3)}
-											</p>
-											<p class="text-xs text-gray-500 mt-1">
-												Long: {rollLongDelta.toFixed(3)} - Short: {rollShortDelta.toFixed(3)}
-											</p>
-										</div>
-										<div>
-											<p class="text-sm text-gray-600">Net Theta</p>
-											<p class="text-xl font-bold {rollNetTheta >= 0 ? 'text-green-600' : 'text-red-600'}">
-												{rollNetTheta.toFixed(2)} /day
-											</p>
-											<p class="text-xs text-gray-500 mt-1">
-												Long: {rollLongTheta.toFixed(2)} - Short: {rollShortTheta.toFixed(2)}
-											</p>
-										</div>
+							{#if shortDelta !== 0 || longDelta !== 0}
+							<div class="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+								<h3 class="text-lg font-semibold mb-3 text-gray-900">📊 Net Greeks (for {quantity} spread{quantity > 1 ? 's' : ''})</h3>
+								<div class="grid grid-cols-2 gap-4">
+									<div>
+										<p class="text-sm text-gray-600">Net Delta</p>
+										<p class="text-xl font-bold {netDelta >= 0 ? 'text-green-600' : 'text-red-600'}">
+											{netDelta.toFixed(3)}
+										</p>
+										<p class="text-xs text-gray-500 mt-1">
+											Long: {longDelta.toFixed(3)} - Short: {shortDelta.toFixed(3)}
+										</p>
+									</div>
+									<div>
+										<p class="text-sm text-gray-600">Net Theta</p>
+										<p class="text-xl font-bold {netTheta >= 0 ? 'text-green-600' : 'text-red-600'}">
+											{netTheta.toFixed(2)} /day
+										</p>
+										<p class="text-xs text-gray-500 mt-1">
+											Long: {longTheta.toFixed(2)} - Short: {shortTheta.toFixed(2)}
+										</p>
 									</div>
 								</div>
-							{/if}
+							</div>
 						{/if}
 
-						{#if rollData.spreadOptions.shortOption.ask && rollData.spreadOptions.longOption.bid}
+						{#if spreadOptions.shortOption.ask && spreadOptions.longOption.bid}
 							<div class="mt-4 p-4 bg-gray-50 rounded-lg">
 								<p class="text-sm text-gray-600">Estimated Net Cost (per spread)</p>
 								<p class="text-xl font-bold text-gray-900">
-									{formatCurrency((rollData.spreadOptions.longOption.ask || 0) - (rollData.spreadOptions.shortOption.bid || 0))}
+									{formatCurrency((spreadOptions.longOption.ask || 0) - (spreadOptions.shortOption.bid || 0))}
 								</p>
 								<p class="text-xs text-gray-500 mt-1">
-									(Buy long at {formatCurrency(rollData.spreadOptions.longOption.ask || 0)} - Sell short at {formatCurrency(rollData.spreadOptions.shortOption.bid || 0)})
+									(Buy long at {formatCurrency(spreadOptions.longOption.ask || 0)} - Sell short at {formatCurrency(spreadOptions.shortOption.bid || 0)})
 								</p>
 							</div>
 						{/if}
 
-						<!-- Next Day Spread Estimate for Roll Options -->
-						{#if rollData.spreadOptions.nextDaySpread && rollData.spreadOptions.estimatedOvernightGain !== null && rollData.spreadOptions.estimatedOvernightGain !== undefined}
+						<!-- Next Day Spread Estimate -->
+						{#if spreadOptions.nextDaySpread && spreadOptions.estimatedOvernightGain !== null && spreadOptions.estimatedOvernightGain !== undefined}
 							<div class="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
 								<h3 class="text-lg font-semibold mb-3 text-gray-900">🔮 Tomorrow's Value Estimate</h3>
 								<p class="text-sm text-gray-600 mb-3">
-									Estimating tomorrow's value by comparing to today's {(rollData.spreadOptions.nextDaySpread.shortOption.daysUntil || 'N/A')}/{rollData.spreadOptions.nextDaySpread.longOption.daysUntil || 'N/A'} calendar spread
+									Estimating tomorrow's value by comparing to today's {(spreadOptions.nextDaySpread.shortOption.daysUntil || 'N/A')}/{spreadOptions.nextDaySpread.longOption.daysUntil || 'N/A'} calendar spread
 								</p>
 								<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 									<div>
 										<p class="text-sm text-gray-600">Current Spread Cost</p>
 										<p class="text-lg font-semibold text-gray-900">
-											{rollData.spreadOptions.currentSpreadCost !== null ? formatCurrency(rollData.spreadOptions.currentSpreadCost) : 'N/A'}
+											{spreadOptions.currentSpreadCost !== null ? formatCurrency(spreadOptions.currentSpreadCost) : 'N/A'}
 										</p>
 										<p class="text-xs text-gray-500 mt-1">Cost to open spread</p>
 									</div>
 									<div>
 										<p class="text-sm text-gray-600">Estimated Tomorrow Value</p>
 										<p class="text-lg font-semibold text-gray-900">
-											{rollData.spreadOptions.estimatedTomorrowValue !== null ? formatCurrency(rollData.spreadOptions.estimatedTomorrowValue) : 'N/A'}
+											{spreadOptions.estimatedTomorrowValue !== null ? formatCurrency(spreadOptions.estimatedTomorrowValue) : 'N/A'}
 										</p>
-										<p class="text-xs text-gray-500 mt-1">Based on {(rollData.spreadOptions.nextDaySpread.shortOption.daysUntil || 'N/A')}/{rollData.spreadOptions.nextDaySpread.longOption.daysUntil || 'N/A'} spread today</p>
+										<p class="text-xs text-gray-500 mt-1">Based on {(spreadOptions.nextDaySpread.shortOption.daysUntil || 'N/A')}/{spreadOptions.nextDaySpread.longOption.daysUntil || 'N/A'} spread today</p>
 									</div>
 									<div>
 										<p class="text-sm text-gray-600">Estimated Overnight Gain</p>
-										<p class="text-xl font-bold {rollData.spreadOptions.estimatedOvernightGain >= 0 ? 'text-green-600' : 'text-red-600'}">
-											{rollData.spreadOptions.estimatedOvernightGain >= 0 ? '+' : ''}{formatCurrency(rollData.spreadOptions.estimatedOvernightGain)}
+										<p class="text-xl font-bold {spreadOptions.estimatedOvernightGain >= 0 ? 'text-green-600' : 'text-red-600'}">
+											{spreadOptions.estimatedOvernightGain >= 0 ? '+' : ''}{formatCurrency(spreadOptions.estimatedOvernightGain)}
 										</p>
 										<p class="text-xs text-gray-500 mt-1">
-											For {quantity} spread{quantity > 1 ? 's' : ''}: {formatCurrency(rollData.spreadOptions.estimatedOvernightGain * quantity)}
+											For {quantity} spread{quantity > 1 ? 's' : ''}: {formatCurrency(spreadOptions.estimatedOvernightGain * quantity)}
 										</p>
 									</div>
 								</div>
 								<div class="mt-3 pt-3 border-t border-green-300">
 									<p class="text-xs text-gray-500">
-										⚠️ Assumes underlying price and volatility remain unchanged. Based on current market prices of {(rollData.spreadOptions.nextDaySpread.shortOption.daysUntil || 'N/A')}/{rollData.spreadOptions.nextDaySpread.longOption.daysUntil || 'N/A'} calendar spread trading today.
+										⚠️ Assumes underlying price and volatility remain unchanged. Based on current market prices of {(spreadOptions.nextDaySpread.shortOption.daysUntil || 'N/A')}/{spreadOptions.nextDaySpread.longOption.daysUntil || 'N/A'} calendar spread trading today.
 									</p>
 								</div>
 							</div>
 						{/if}
+						{/if}
+					</div>
+				{/if}
+			</div>
+		</main>
+
+		<!-- Right Sidebar: Positions & Roll Options -->
+		<aside class="w-96 bg-white border-l border-gray-200 overflow-y-auto">
+			<div class="p-4">
+				<!-- Current Positions -->
+				<div class="mb-6">
+					<div class="flex items-center gap-2 mb-3">
+						<h2 class="text-lg font-semibold text-gray-900">Positions</h2>
+						{#if streamingEnabled}
+							<span class="flex items-center gap-1 text-xs text-green-600">
+								<span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+								<span>Live</span>
+							</span>
+						{/if}
+					</div>
+
+					{#if loading && positions.length === 0}
+						<p class="text-sm text-gray-600">Loading...</p>
+					{:else if positions.length === 0}
+						<p class="text-sm text-gray-600">No positions</p>
+					{:else}
+						<div class="space-y-3">
+							{#each positions as position}
+								<div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
+									<div class="flex justify-between items-start mb-2">
+										<div>
+											<p class="text-sm font-semibold text-gray-900">{position.symbol || 'N/A'}</p>
+											<p class="text-xs text-gray-600">
+												Qty: <span class="font-semibold {parseFloat(position.quantity || 0) < 0 ? 'text-red-600' : 'text-gray-900'}">{position.quantity || 'N/A'}</span>
+											</p>
+										</div>
+										<div class="text-right">
+											<p class="text-xs text-gray-600">P&L</p>
+											<p class="text-sm font-bold {parseFloat(position.unrealized_pl || 0) >= 0 ? 'text-green-600' : 'text-red-600'}">
+												{formatCurrency(position.unrealized_pl || 0)}
+											</p>
+										</div>
+									</div>
+									<div class="grid grid-cols-2 gap-2 text-xs">
+										<div>
+											<p class="text-gray-600">Price</p>
+											<div class="flex items-center gap-1">
+												<p class="font-medium text-gray-900">
+													{position.last_price ? formatCurrency(position.last_price) : (position.bid && position.ask ? `${formatCurrency(position.bid)}/${formatCurrency(position.ask)}` : 'N/A')}
+												</p>
+												{#if position.last_price && streamingEnabled}
+													<span class="w-1 h-1 bg-green-500 rounded-full animate-pulse"></span>
+												{/if}
+											</div>
+										</div>
+										<div>
+											<p class="text-gray-600">Value</p>
+											<p class="font-medium text-gray-900">{formatCurrency(position.market_value || 0)}</p>
+										</div>
+										<div>
+											<p class="text-gray-600">Cost</p>
+											<p class="font-medium text-gray-900">{formatCurrency(position.cost_basis || 0)}</p>
+										</div>
+										<div>
+											<p class="text-gray-600">Exp</p>
+											<p class="font-medium text-gray-900 text-xs">
+												{position.expiration_date ? formatDate(position.expiration_date) : (position.symbol ? extractExpirationFromSymbol(position.symbol) : 'N/A')}
+											</p>
+										</div>
+									</div>
+								</div>
+							{/each}
+						</div>
 					{/if}
 				</div>
-			{/each}
-		{/if}
 
-		<!-- Account Orders -->
-		<div class="bg-white rounded-lg shadow-md p-6 mb-6">
-			<h2 class="text-xl font-semibold text-gray-900 mb-4">Recent Orders</h2>
+				<!-- Available Roll Options -->
+				{#if Object.keys(rollOptions).length > 0}
+					<div class="border-t border-gray-200 pt-6">
+						<h2 class="text-lg font-semibold text-gray-900 mb-3">Roll Options</h2>
+						<div class="space-y-4">
+							{#each Object.entries(rollOptions) as [underlying, rollData]}
+								<div class="bg-purple-50 rounded-lg p-3 border border-purple-200">
+									<div class="flex items-center justify-between mb-2">
+										<h3 class="text-sm font-semibold text-gray-900">{underlying}</h3>
+										{#if streamingEnabled && (rollOptionQuotes[rollData.spreadOptions?.shortOption?.symbol] || rollOptionQuotes[rollData.spreadOptions?.longOption?.symbol])}
+											<span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+										{/if}
+									</div>
+									{#if loadingRollOptions[underlying]}
+										<p class="text-xs text-gray-600">Loading...</p>
+									{:else if rollData.spreadOptions}
+										<div class="space-y-2 text-xs mb-3">
+											<div class="grid grid-cols-2 gap-2">
+												<div>
+													<p class="text-gray-600">Short Strike</p>
+													<p class="font-medium">{formatCurrency(rollData.spreadOptions.shortOption.strike || 0)}</p>
+												</div>
+												<div>
+													<p class="text-gray-600">Long Strike</p>
+													<p class="font-medium">{formatCurrency(rollData.spreadOptions.longOption.strike || 0)}</p>
+												</div>
+											</div>
+											<div>
+												<p class="text-gray-600">Net Cost</p>
+												<p class="font-semibold text-gray-900">
+													{formatCurrency((rollData.spreadOptions.longOption.ask || 0) - (rollData.spreadOptions.shortOption.bid || 0))}
+												</p>
+											</div>
+										</div>
+										<button
+											onclick={() => rollSpreadForSymbol(underlying, rollData)}
+											disabled={loading || status === 'rolling'}
+											class="w-full px-3 py-1.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-xs font-semibold"
+										>
+											{status === 'rolling' ? 'Rolling...' : `Roll ${underlying}`}
+										</button>
+									{/if}
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+			</div>
+		</aside>
+	</div>
 
+	<!-- Sticky Footer: Orders -->
+	<footer class="sticky bottom-0 z-40 bg-white border-t border-gray-200 shadow-lg">
+		<div class="px-4 sm:px-6 lg:px-8 py-3">
+			<div class="flex items-center justify-between mb-2">
+				<h2 class="text-sm font-semibold text-gray-900">Recent Orders</h2>
+				{#if balances?.pending_orders_count}
+					<span class="text-xs text-gray-600">Pending: {balances.pending_orders_count}</span>
+				{/if}
+			</div>
 			{#if loading && orders.length === 0}
-				<p class="text-gray-600">Loading orders...</p>
+				<p class="text-xs text-gray-600">Loading orders...</p>
 			{:else if orders.length === 0}
-				<p class="text-gray-600">No orders found</p>
+				<p class="text-xs text-gray-600">No orders found</p>
 			{:else}
-				<div class="overflow-x-auto">
-					<table class="min-w-full divide-y divide-gray-200">
+				<div class="overflow-x-auto max-h-32">
+					<table class="min-w-full divide-y divide-gray-200 text-xs">
 						<thead class="bg-gray-50">
 							<tr>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Symbol</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Side</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avg Fill Price</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Exec Qty</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+								<th class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+								<th class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase">Symbol</th>
+								<th class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase">Side</th>
+								<th class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase">Qty</th>
+								<th class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+								<th class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+								<th class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+								<th class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
 							</tr>
 						</thead>
 						<tbody class="bg-white divide-y divide-gray-200">
-							{#each orders as order}
+							{#each orders.slice(0, 3) as order}
 								<tr>
-									<td class="px-4 py-3 text-sm font-medium text-gray-900">{order.id || 'N/A'}</td>
-									<td class="px-4 py-3 text-sm font-medium text-gray-900">{order.symbol || 'N/A'}</td>
-									<td class="px-4 py-3 text-sm text-gray-600">
-										<span class="px-2 py-1 text-xs font-semibold rounded {
+									<td class="px-2 py-1 text-xs font-medium text-gray-900">{order.id || 'N/A'}</td>
+									<td class="px-2 py-1 text-xs text-gray-900">{order.symbol || 'N/A'}</td>
+									<td class="px-2 py-1 text-xs">
+										<span class="px-1 py-0.5 text-xs font-semibold rounded {
 											order.side?.includes('buy') ? 'bg-green-100 text-green-800' : 
 											order.side?.includes('sell') ? 'bg-red-100 text-red-800' : 
 											'bg-gray-100 text-gray-800'
@@ -1447,10 +1535,9 @@
 											{order.side || 'N/A'}
 										</span>
 									</td>
-									<td class="px-4 py-3 text-sm text-gray-600">{order.quantity || 'N/A'}</td>
-									<td class="px-4 py-3 text-sm text-gray-600">{order.type || 'N/A'}</td>
-									<td class="px-4 py-3 text-sm">
-										<span class="px-2 py-1 text-xs font-semibold rounded {
+									<td class="px-2 py-1 text-xs text-gray-600">{order.quantity || 'N/A'}</td>
+									<td class="px-2 py-1 text-xs">
+										<span class="px-1 py-0.5 text-xs font-semibold rounded {
 											order.status === 'filled' ? 'bg-green-100 text-green-800' :
 											order.status === 'open' || order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
 											order.status === 'canceled' || order.status === 'rejected' ? 'bg-red-100 text-red-800' :
@@ -1459,15 +1546,14 @@
 											{order.status || 'N/A'}
 										</span>
 									</td>
-									<td class="px-4 py-3 text-sm text-gray-600">{order.avg_fill_price ? formatCurrency(order.avg_fill_price) : 'N/A'}</td>
-									<td class="px-4 py-3 text-sm text-gray-600">{order.exec_quantity || '0'}</td>
-									<td class="px-4 py-3 text-sm text-gray-600">{formatDateTime(order.create_date)}</td>
-									<td class="px-4 py-3 text-sm">
+									<td class="px-2 py-1 text-xs text-gray-600">{order.avg_fill_price ? formatCurrency(order.avg_fill_price) : 'N/A'}</td>
+									<td class="px-2 py-1 text-xs text-gray-600">{formatDateTime(order.create_date)}</td>
+									<td class="px-2 py-1 text-xs">
 										{#if order.status === 'open' || order.status === 'pending' || order.status === 'partially_filled'}
 											<button
 												onclick={() => cancelOrder(order.id)}
 												disabled={loading || status !== 'idle'}
-												class="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+												class="px-2 py-0.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
 											>
 												Cancel
 											</button>
@@ -1480,305 +1566,7 @@
 				</div>
 			{/if}
 		</div>
-
-		<!-- Trading Controls -->
-		<div class="bg-white rounded-lg shadow-md p-6 mb-6">
-			<h2 class="text-xl font-semibold text-gray-900 mb-4">Trading Controls</h2>
-			
-			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-				<div>
-					<label for="symbol" class="block text-sm font-medium text-gray-700 mb-2">
-						Underlying Symbol
-					</label>
-					<select
-						id="symbol"
-						bind:value={selectedSymbol}
-						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-					>
-						{#each availableSymbols as sym}
-							<option value={sym.value}>{sym.label}</option>
-						{/each}
-					</select>
-				</div>
-				<div>
-					<label for="targetDelta" class="block text-sm font-medium text-gray-700 mb-2">
-						Target Delta ({(targetDelta * 100).toFixed(0)}%)
-					</label>
-					<input
-						id="targetDelta"
-						type="number"
-						min="0.01"
-						max="0.99"
-						step="0.01"
-						bind:value={targetDelta}
-						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-					/>
-					<p class="text-xs text-gray-500 mt-1">Enter as decimal (0.35 = 35 delta)</p>
-				</div>
-				<div>
-					<label for="optionType" class="block text-sm font-medium text-gray-700 mb-2">
-						Option Type
-					</label>
-					<select
-						id="optionType"
-						bind:value={optionType}
-						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-					>
-						<option value="call">Call</option>
-						<option value="put">Put</option>
-					</select>
-				</div>
-				<div>
-					<label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">
-						Quantity
-					</label>
-					<input
-						id="quantity"
-						type="number"
-						min="1"
-						bind:value={quantity}
-						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-					/>
-				</div>
-			</div>
-
-			<div class="flex flex-wrap gap-4">
-				<button
-					onclick={findSpread}
-					disabled={loading || status === 'finding'}
-					class="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 font-semibold"
-				>
-					{status === 'finding' ? 'Finding...' : '🔍 Find Spread'}
-				</button>
-
-				<button
-					onclick={previewSpread}
-					disabled={loading || status === 'previewing' || !spreadOptions}
-					class="px-6 py-3 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 disabled:opacity-50 font-semibold"
-				>
-					{status === 'previewing' ? 'Previewing...' : '👁️ Preview Order'}
-				</button>
-
-				<button
-					onclick={buySpread}
-					disabled={loading || status === 'buying' || !spreadOptions}
-					class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 font-semibold"
-				>
-					{status === 'buying' ? 'Buying...' : '💰 Buy Spread'}
-				</button>
-
-				<button
-					onclick={rollSpread}
-					disabled={loading || status === 'rolling' || positions.length === 0}
-					class="px-6 py-3 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 font-semibold"
-				>
-					{status === 'rolling' ? 'Rolling...' : '🔄 Roll Spread'}
-				</button>
-			</div>
-		</div>
-
-		<!-- Spread Options Display -->
-		{#if spreadOptions}
-			<div class="bg-white rounded-lg shadow-md p-6 mb-6">
-				<div class="flex items-center gap-3 mb-4">
-					<h2 class="text-xl font-semibold text-gray-900">Available Spread Options</h2>
-					{#if streamingEnabled && (spreadOptionQuotes[spreadOptions.shortOption?.symbol] || spreadOptionQuotes[spreadOptions.longOption?.symbol])}
-						<span class="flex items-center gap-2 text-sm text-green-600">
-							<span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-							<span>Live Prices</span>
-						</span>
-					{/if}
-				</div>
-				
-				{#if currentPrice > 0}
-					<div class="mb-4">
-						<p class="text-sm text-gray-600">Current {symbol} Price</p>
-						<p class="text-2xl font-bold text-gray-900">{formatCurrency(currentPrice)}</p>
-					</div>
-				{/if}
-
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-					<!-- Short Option -->
-					<div class="border border-gray-200 rounded-lg p-4">
-						<h3 class="text-lg font-semibold text-gray-900 mb-3">Short Leg (Sell)</h3>
-						<div class="space-y-2">
-							<div>
-								<p class="text-sm text-gray-600">Symbol</p>
-								<p class="font-medium">{spreadOptions.shortOption.symbol || 'N/A'}</p>
-							</div>
-							<div>
-								<p class="text-sm text-gray-600">Strike</p>
-								<p class="font-medium">{formatCurrency(spreadOptions.shortOption.strike || 0)}</p>
-							</div>
-							<div>
-								<p class="text-sm text-gray-600">Delta</p>
-								<p class="font-medium">{spreadOptions.shortOption.delta?.toFixed(3) || 'N/A'}</p>
-							</div>
-							<div>
-								<p class="text-sm text-gray-600">Bid/Ask</p>
-								<div class="flex items-center gap-2">
-									<p class="font-medium">
-										{formatCurrency(spreadOptions.shortOption.bid || 0)} / {formatCurrency(spreadOptions.shortOption.ask || 0)}
-										{#if spreadOptions.shortOption.last}
-											<span class="text-xs text-gray-500 ml-2">(Last: {formatCurrency(spreadOptions.shortOption.last)})</span>
-										{/if}
-									</p>
-									{#if spreadOptionQuotes[spreadOptions.shortOption.symbol] && streamingEnabled}
-										<span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-									{/if}
-								</div>
-							</div>
-							<div>
-								<p class="text-sm text-gray-600">Expiration</p>
-								<p class="font-medium">{formatDate(spreadOptions.shortExpiration)} ({spreadOptions.shortOption.daysUntil} days)</p>
-							</div>
-						</div>
-					</div>
-
-					<!-- Long Option -->
-					<div class="border border-gray-200 rounded-lg p-4">
-						<h3 class="text-lg font-semibold text-gray-900 mb-3">Long Leg (Buy)</h3>
-						<div class="space-y-2">
-							<div>
-								<p class="text-sm text-gray-600">Symbol</p>
-								<p class="font-medium">{spreadOptions.longOption.symbol || 'N/A'}</p>
-							</div>
-							<div>
-								<p class="text-sm text-gray-600">Strike</p>
-								<p class="font-medium">{formatCurrency(spreadOptions.longOption.strike || 0)}</p>
-							</div>
-							<div>
-								<p class="text-sm text-gray-600">Delta</p>
-								<p class="font-medium">
-									{(spreadOptions.longOption.delta ?? spreadOptions.longOption.greeks?.delta)?.toFixed(3) || 'N/A'}
-								</p>
-							</div>
-							<div>
-								<p class="text-sm text-gray-600">Bid/Ask</p>
-								<div class="flex items-center gap-2">
-									<p class="font-medium">
-										{formatCurrency(spreadOptions.longOption.bid || 0)} / {formatCurrency(spreadOptions.longOption.ask || 0)}
-										{#if spreadOptions.longOption.last}
-											<span class="text-xs text-gray-500 ml-2">(Last: {formatCurrency(spreadOptions.longOption.last)})</span>
-										{/if}
-									</p>
-									{#if spreadOptionQuotes[spreadOptions.longOption.symbol] && streamingEnabled}
-										<span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-									{/if}
-								</div>
-							</div>
-							<div>
-								<p class="text-sm text-gray-600">Expiration</p>
-								<p class="font-medium">{formatDate(spreadOptions.longExpiration)} ({spreadOptions.longOption.daysUntil} days)</p>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- Net Greeks Summary -->
-				{#if spreadOptions}
-					{@const shortDelta = spreadOptions.shortOption.delta ?? spreadOptions.shortOption.greeks?.delta ?? 0}
-					{@const longDelta = spreadOptions.longOption.delta ?? spreadOptions.longOption.greeks?.delta ?? 0}
-					{@const shortTheta = spreadOptions.shortOption.greeks?.theta ?? 0}
-					{@const longTheta = spreadOptions.longOption.greeks?.theta ?? 0}
-					{@const netDelta = (longDelta - shortDelta) * quantity}
-					{@const netTheta = (longTheta - shortTheta) * quantity}
-					
-					{#if shortDelta !== 0 || longDelta !== 0}
-						<div class="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-							<h3 class="text-lg font-semibold mb-3 text-gray-900">📊 Net Greeks (for {quantity} spread{quantity > 1 ? 's' : ''})</h3>
-							<div class="grid grid-cols-2 gap-4">
-								<div>
-									<p class="text-sm text-gray-600">Net Delta</p>
-									<p class="text-xl font-bold {netDelta >= 0 ? 'text-green-600' : 'text-red-600'}">
-										{netDelta.toFixed(3)}
-									</p>
-									<p class="text-xs text-gray-500 mt-1">
-										Long: {longDelta.toFixed(3)} - Short: {shortDelta.toFixed(3)}
-									</p>
-								</div>
-								<div>
-									<p class="text-sm text-gray-600">Net Theta</p>
-									<p class="text-xl font-bold {netTheta >= 0 ? 'text-green-600' : 'text-red-600'}">
-										{netTheta.toFixed(2)} /day
-									</p>
-									<p class="text-xs text-gray-500 mt-1">
-										Long: {longTheta.toFixed(2)} - Short: {shortTheta.toFixed(2)}
-									</p>
-								</div>
-							</div>
-						</div>
-					{/if}
-				{/if}
-
-				{#if spreadOptions.shortOption.ask && spreadOptions.longOption.bid}
-					<div class="mt-4 p-4 bg-gray-50 rounded-lg">
-						<p class="text-sm text-gray-600">Estimated Net Cost (per spread)</p>
-						<p class="text-xl font-bold text-gray-900">
-							{formatCurrency((spreadOptions.longOption.ask || 0) - (spreadOptions.shortOption.bid || 0))}
-						</p>
-						<p class="text-xs text-gray-500 mt-1">
-							(Buy long at {formatCurrency(spreadOptions.longOption.ask || 0)} - Sell short at {formatCurrency(spreadOptions.shortOption.bid || 0)})
-						</p>
-					</div>
-				{/if}
-
-				<!-- Next Day Spread Estimate -->
-				{#if spreadOptions.nextDaySpread && spreadOptions.estimatedOvernightGain !== null && spreadOptions.estimatedOvernightGain !== undefined}
-					<div class="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
-						<h3 class="text-lg font-semibold mb-3 text-gray-900">🔮 Tomorrow's Value Estimate</h3>
-						<p class="text-sm text-gray-600 mb-3">
-							Estimating tomorrow's value by comparing to today's {(spreadOptions.nextDaySpread.shortOption.daysUntil || 'N/A')}/{spreadOptions.nextDaySpread.longOption.daysUntil || 'N/A'} calendar spread
-						</p>
-						<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-							<div>
-								<p class="text-sm text-gray-600">Current Spread Cost</p>
-								<p class="text-lg font-semibold text-gray-900">
-									{spreadOptions.currentSpreadCost !== null ? formatCurrency(spreadOptions.currentSpreadCost) : 'N/A'}
-								</p>
-								<p class="text-xs text-gray-500 mt-1">Cost to open spread</p>
-							</div>
-							<div>
-								<p class="text-sm text-gray-600">Estimated Tomorrow Value</p>
-								<p class="text-lg font-semibold text-gray-900">
-									{spreadOptions.estimatedTomorrowValue !== null ? formatCurrency(spreadOptions.estimatedTomorrowValue) : 'N/A'}
-								</p>
-								<p class="text-xs text-gray-500 mt-1">Based on {(spreadOptions.nextDaySpread.shortOption.daysUntil || 'N/A')}/{spreadOptions.nextDaySpread.longOption.daysUntil || 'N/A'} spread today</p>
-							</div>
-							<div>
-								<p class="text-sm text-gray-600">Estimated Overnight Gain</p>
-								<p class="text-xl font-bold {spreadOptions.estimatedOvernightGain >= 0 ? 'text-green-600' : 'text-red-600'}">
-									{spreadOptions.estimatedOvernightGain >= 0 ? '+' : ''}{formatCurrency(spreadOptions.estimatedOvernightGain)}
-								</p>
-								<p class="text-xs text-gray-500 mt-1">
-									For {quantity} spread{quantity > 1 ? 's' : ''}: {formatCurrency(spreadOptions.estimatedOvernightGain * quantity)}
-								</p>
-							</div>
-						</div>
-						<div class="mt-3 pt-3 border-t border-green-300">
-							<p class="text-xs text-gray-500">
-								⚠️ Assumes underlying price and volatility remain unchanged. Based on current market prices of {(spreadOptions.nextDaySpread.shortOption.daysUntil || 'N/A')}/{spreadOptions.nextDaySpread.longOption.daysUntil || 'N/A'} calendar spread trading today.
-							</p>
-						</div>
-					</div>
-				{/if}
-			</div>
-		{/if}
-
-		<!-- Info Section -->
-		<div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
-			<h3 class="text-lg font-semibold text-blue-900 mb-2">ℹ️ How It Works</h3>
-			<ul class="list-disc list-inside space-y-2 text-blue-800">
-				<li>This app finds {(targetDelta * 100).toFixed(0)} delta {optionType} options on {symbol} with 3 and 4 day expirations</li>
-				<li>A calendar spread is created by selling the short expiration and buying the long expiration</li>
-				<li>Use "Roll Spread" to close existing positions and open new ones daily</li>
-				<li>All trades are executed through the Tradier API</li>
-				<li>Available underlyings: SPY, XSP, QQQ, DIA</li>
-				<li>Delta is configurable (default: 35 delta / 0.35)</li>
-				<li>You can trade both calls and puts</li>
-			</ul>
-		</div>
-	</div>
+	</footer>
 </div>
 
 <!-- Preview Modal -->
