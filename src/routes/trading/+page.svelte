@@ -35,6 +35,12 @@
 	
 	// Portfolio greeks state
 	let portfolioGreeks = $state({ netDelta: 0, netTheta: 0, loading: false });
+	
+	// Strike and expiration navigation state
+	let strikeOffset = $state(0); // Strike offset in $5 increments (or $1 for some symbols)
+	let expirationOffset = $state(0); // Expiration offset (0 = current, -1 = previous, +1 = next)
+	let availableExpirations = $state([]); // Available expiration dates
+	let currentStrike = $state(null); // Current strike being viewed
 
 	const availableSymbols = [
 		{ value: 'SPY', label: 'SPY - S&P 500 ETF' },
@@ -596,11 +602,22 @@
 		}
 	}
 
-	async function findSpread() {
-		console.log('findSpread');
+	async function findSpread(strikeOffsetParam = null, expirationOffsetParam = null, resetNav = false) {
+		console.log('findSpread', { strikeOffsetParam, expirationOffsetParam, resetNav });
 		status = 'finding';
 		error = null;
 		symbol = selectedSymbol; // Update symbol when finding
+		
+		// Reset navigation if requested (when finding initial spread)
+		if (resetNav) {
+			strikeOffset = 0;
+			expirationOffset = 0;
+		}
+		
+		// Use provided offsets or current state
+		const strikeOffsetToUse = strikeOffsetParam !== null ? strikeOffsetParam : strikeOffset;
+		const expirationOffsetToUse = expirationOffsetParam !== null ? expirationOffsetParam : expirationOffset;
+		
 		try {
 			const response = await fetch('/api/trading', {
 				method: 'POST',
@@ -609,7 +626,9 @@
 					action: 'find_spread', 
 					symbol: selectedSymbol,
 					targetDelta: targetDelta,
-					optionType: optionType
+					optionType: optionType,
+					strikeOffset: strikeOffsetToUse,
+					expirationOffset: expirationOffsetToUse
 				})
 			});
 			const data = await response.json();
@@ -622,6 +641,14 @@
 				symbol = data.symbol || selectedSymbol;
 				targetDelta = data.targetDelta || targetDelta;
 				optionType = data.optionType || optionType;
+				
+				// Store navigation state
+				if (data.availableExpirations) {
+					availableExpirations = data.availableExpirations;
+				}
+				if (data.currentStrike) {
+					currentStrike = data.currentStrike;
+				}
 				
 				// Store next day spread data for estimation
 				spreadOptions.nextDaySpread = data.nextDaySpread;
@@ -641,6 +668,32 @@
 		} finally {
 			status = 'idle';
 		}
+	}
+
+	async function navigateStrike(direction) {
+		if (!spreadOptions) return;
+		
+		// Determine strike increment (typically $5 for SPY, $1 for some others)
+		const strikeIncrement = selectedSymbol === 'SPY' || selectedSymbol === 'QQQ' || selectedSymbol === 'DIA' ? 5 : 1;
+		const newOffset = strikeOffset + (direction === 'up' ? 1 : -1);
+		
+		strikeOffset = newOffset;
+		await findSpread(newOffset, expirationOffset);
+	}
+
+	async function navigateExpiration(direction) {
+		if (!spreadOptions || availableExpirations.length === 0) return;
+		
+		const newOffset = expirationOffset + (direction === 'next' ? 1 : -1);
+		
+		// Check bounds (we'll let the API handle validation)
+		expirationOffset = newOffset;
+		await findSpread(strikeOffset, newOffset);
+	}
+
+	function resetNavigation() {
+		strikeOffset = 0;
+		expirationOffset = 0;
 	}
 
 	async function previewSpread() {
@@ -1133,7 +1186,7 @@
 
 				<div class="mt-6 space-y-2">
 					<button
-						onclick={findSpread}
+						onclick={() => findSpread(null, null, true)}
 						disabled={loading || status === 'finding'}
 						class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 font-semibold text-sm"
 					>
@@ -1209,6 +1262,79 @@
 									<p class="text-xs text-gray-500">{symbol}</p>
 									<p class="text-lg font-bold text-gray-900">{formatCurrency(currentPrice)}</p>
 								</div>
+							{/if}
+						</div>
+
+						<!-- Navigation Controls -->
+						<div class="flex items-center gap-4 mb-3 p-2 bg-gray-50 rounded-lg border border-gray-200">
+							<!-- Strike Navigation -->
+							<div class="flex items-center gap-2">
+								<span class="text-xs font-medium text-gray-700">Strike:</span>
+								<button
+									onclick={() => navigateStrike('down')}
+									disabled={status === 'finding'}
+									class="px-2 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 text-xs font-semibold"
+									title="Lower strike"
+								>
+									◄
+								</button>
+								<span class="text-xs font-semibold text-gray-900 min-w-[60px] text-center">
+									{currentStrike ? formatCurrency(currentStrike) : formatCurrency(spreadOptions.shortOption.strike || 0)}
+									{#if strikeOffset !== 0}
+										<span class="text-gray-500 ml-1">({strikeOffset > 0 ? '+' : ''}{strikeOffset * (selectedSymbol === 'SPY' || selectedSymbol === 'QQQ' || selectedSymbol === 'DIA' ? 5 : 1)})</span>
+									{/if}
+								</span>
+								<button
+									onclick={() => navigateStrike('up')}
+									disabled={status === 'finding'}
+									class="px-2 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 text-xs font-semibold"
+									title="Higher strike"
+								>
+									►
+								</button>
+							</div>
+
+							<div class="w-px h-6 bg-gray-300"></div>
+
+							<!-- Expiration Navigation -->
+							<div class="flex items-center gap-2">
+								<span class="text-xs font-medium text-gray-700">Expiration:</span>
+								<button
+									onclick={() => navigateExpiration('prev')}
+									disabled={status === 'finding'}
+									class="px-2 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 text-xs font-semibold"
+									title="Previous expiration"
+								>
+									◄
+								</button>
+								<span class="text-xs font-semibold text-gray-900 min-w-[80px] text-center">
+									{spreadOptions.shortOption.daysUntil}/{spreadOptions.longOption.daysUntil} days
+									{#if expirationOffset !== 0}
+										<span class="text-gray-500 ml-1">({expirationOffset > 0 ? '+' : ''}{expirationOffset})</span>
+									{/if}
+								</span>
+								<button
+									onclick={() => navigateExpiration('next')}
+									disabled={status === 'finding'}
+									class="px-2 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 text-xs font-semibold"
+									title="Next expiration"
+								>
+									►
+								</button>
+							</div>
+
+							<div class="flex-1"></div>
+
+							<!-- Reset Button -->
+							{#if strikeOffset !== 0 || expirationOffset !== 0}
+								<button
+									onclick={() => { resetNavigation(); findSpread(0, 0); }}
+									disabled={status === 'finding'}
+									class="px-2 py-1 bg-blue-100 text-blue-700 border border-blue-300 rounded hover:bg-blue-200 disabled:opacity-50 text-xs font-semibold"
+									title="Reset to original spread"
+								>
+									Reset
+								</button>
 							{/if}
 						</div>
 

@@ -11,7 +11,7 @@ const LONG_EXPIRATION_DAYS = 4;
 /**
  * Find options for calendar spread by delta
  */
-export async function findCalendarSpreadOptions(tradierClient, symbol, currentPrice, targetDelta = 0.35, optionType = 'call') {
+export async function findCalendarSpreadOptions(tradierClient, symbol, currentPrice, targetDelta = 0.35, optionType = 'call', strikeOffset = 0, expirationOffset = 0) {
 	try {
 		// Get available expirations
 		const expirationsResponse = await tradierClient.getOptionExpirations(symbol);
@@ -29,34 +29,49 @@ export async function findCalendarSpreadOptions(tradierClient, symbol, currentPr
 		const targetLongDate = new Date(today);
 		targetLongDate.setDate(today.getDate() + LONG_EXPIRATION_DAYS);
 
-		// Find closest expirations
-		let shortExpiration = null;
-		let longExpiration = null;
-		let shortDaysDiff = Infinity;
-		let longDaysDiff = Infinity;
-
+		// Find closest expirations, then apply offset
+		const validExpirations = [];
 		for (const expDate of expirations) {
-			const exp = new Date(expDate);
 			const daysUntil = getTradingDaysUntilExpiration(expDate);
-			
-			// Find short expiration (3 days)
-			if (daysUntil >= 2 && daysUntil <= 4) {
-				const diff = Math.abs(daysUntil - SHORT_EXPIRATION_DAYS);
-				if (diff < shortDaysDiff) {
-					shortDaysDiff = diff;
-					shortExpiration = expDate;
-				}
-			}
-			
-			// Find long expiration (4 days)
-			if (daysUntil >= 3 && daysUntil <= 5) {
-				const diff = Math.abs(daysUntil - LONG_EXPIRATION_DAYS);
-				if (diff < longDaysDiff) {
-					longDaysDiff = diff;
-					longExpiration = expDate;
-				}
+			if (daysUntil >= 1 && daysUntil <= 10) {
+				validExpirations.push({ date: expDate, daysUntil });
 			}
 		}
+		
+		// Sort by days until expiration
+		validExpirations.sort((a, b) => a.daysUntil - b.daysUntil);
+		
+		// Find base expirations (3 and 4 days)
+		let shortExpirationIndex = -1;
+		let longExpirationIndex = -1;
+		
+		for (let i = 0; i < validExpirations.length; i++) {
+			const exp = validExpirations[i];
+			if (shortExpirationIndex === -1 && exp.daysUntil >= 2 && exp.daysUntil <= 4) {
+				shortExpirationIndex = i;
+			}
+			if (longExpirationIndex === -1 && exp.daysUntil >= 3 && exp.daysUntil <= 5) {
+				longExpirationIndex = i;
+			}
+		}
+		
+		// Apply expiration offset
+		if (shortExpirationIndex !== -1 && longExpirationIndex !== -1) {
+			shortExpirationIndex = Math.max(0, Math.min(validExpirations.length - 1, shortExpirationIndex + expirationOffset));
+			longExpirationIndex = Math.max(0, Math.min(validExpirations.length - 1, longExpirationIndex + expirationOffset));
+			
+			// Ensure long expiration is after short expiration
+			if (longExpirationIndex <= shortExpirationIndex) {
+				longExpirationIndex = shortExpirationIndex + 1;
+			}
+			
+			if (longExpirationIndex >= validExpirations.length) {
+				throw new Error('Could not find suitable expirations with offset');
+			}
+		}
+
+		const shortExpiration = validExpirations[shortExpirationIndex]?.date;
+		const longExpiration = validExpirations[longExpirationIndex]?.date;
 
 		if (!shortExpiration || !longExpiration) {
 			throw new Error('Could not find suitable expirations for calendar spread');
@@ -75,24 +90,64 @@ export async function findCalendarSpreadOptions(tradierClient, symbol, currentPr
 			throw new Error(`Could not find ${(targetDelta * 100).toFixed(0)} delta ${optionType} options for short expiration`);
 		}
 
-		// Use the same strike price for the long expiration
-		const shortStrike = parseFloat(shortOption.strike || 0);
+		// Use the same strike price for the long expiration, then apply strike offset
+		const baseStrike = parseFloat(shortOption.strike || 0);
 		
-		// Find option with same strike in long expiration
+		// Determine strike increment (typically $5 for SPY/QQQ/DIA, $1 for others)
+		const strikeIncrement = symbol === 'SPY' || symbol === 'QQQ' || symbol === 'DIA' ? 5 : 1;
+		const targetStrike = baseStrike + (strikeOffset * strikeIncrement);
+		
+		// Find option with target strike in long expiration
 		const longOptionList = longChainResponse?.options?.option;
 		const longOptions = Array.isArray(longOptionList) ? longOptionList : (longOptionList ? [longOptionList] : []);
 		
-		const longOptionRaw = longOptions.find(opt => 
+		// First try to find exact strike match
+		let longOptionRaw = longOptions.find(opt => 
 			opt.option_type === optionType && 
-			Math.abs(parseFloat(opt.strike || 0) - shortStrike) < 0.01 // Allow small floating point differences
+			Math.abs(parseFloat(opt.strike || 0) - targetStrike) < 0.01
 		);
+		
+		// If not found and we have an offset, try to find option at adjusted strike in short chain too
+		if (!longOptionRaw && strikeOffset !== 0) {
+			// Find option at target strike in short chain
+			const shortOptionList = shortChainResponse?.options?.option;
+			const shortOptions = Array.isArray(shortOptionList) ? shortOptionList : (shortOptionList ? [shortOptionList] : []);
+			const adjustedShortOption = shortOptions.find(opt => 
+				opt.option_type === optionType && 
+				Math.abs(parseFloat(opt.strike || 0) - targetStrike) < 0.01
+			);
+			
+			if (adjustedShortOption) {
+				// Now find matching long option
+				longOptionRaw = longOptions.find(opt => 
+					opt.option_type === optionType && 
+					Math.abs(parseFloat(opt.strike || 0) - targetStrike) < 0.01
+				);
+			}
+		}
 
 		if (!longOptionRaw) {
-			throw new Error(`Could not find ${optionType} option with strike ${shortStrike} for long expiration`);
+			throw new Error(`Could not find ${optionType} option with strike ${targetStrike} for long expiration`);
+		}
+		
+		// If we adjusted the strike, update shortOption too
+		let finalShortOption = shortOption;
+		if (strikeOffset !== 0) {
+			const shortOptionList = shortChainResponse?.options?.option;
+			const shortOptions = Array.isArray(shortOptionList) ? shortOptionList : (shortOptionList ? [shortOptionList] : []);
+			const adjustedShort = shortOptions.find(opt => 
+				opt.option_type === optionType && 
+				Math.abs(parseFloat(opt.strike || 0) - targetStrike) < 0.01
+			);
+			if (adjustedShort) {
+				finalShortOption = adjustedShort;
+			}
 		}
 
 		// Extract delta from greeks (same as findOptionsByDelta does)
 		const longDelta = parseFloat(longOptionRaw.greeks?.delta || 0);
+		const shortDelta = parseFloat(finalShortOption.greeks?.delta || 0);
+		
 		const longOption = {
 			...longOptionRaw,
 			delta: longDelta, // Add delta property for consistency with shortOption
@@ -102,7 +157,8 @@ export async function findCalendarSpreadOptions(tradierClient, symbol, currentPr
 
 		return {
 			shortOption: {
-				...shortOption,
+				...finalShortOption,
+				delta: shortDelta,
 				expiration: shortExpiration,
 				daysUntil: getTradingDaysUntilExpiration(shortExpiration)
 			},

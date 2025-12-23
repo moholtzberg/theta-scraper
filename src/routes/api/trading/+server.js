@@ -272,7 +272,23 @@ export async function POST({ request }) {
 				const quotesResponse = await tradierClient.getQuotes([symbol]);
 				const currentPrice = parseFloat(quotesResponse?.quotes?.quote?.last || 0);
 				
-				const spreadOptions = await findCalendarSpreadOptions(tradierClient, symbol, currentPrice, delta, normalizedOptionType);
+				// Get strike and expiration offsets from request body
+				const strikeOffset = parseInt(body.strikeOffset || 0);
+				const expirationOffset = parseInt(body.expirationOffset || 0);
+				
+				const spreadOptions = await findCalendarSpreadOptions(
+					tradierClient, 
+					symbol, 
+					currentPrice, 
+					delta, 
+					normalizedOptionType,
+					strikeOffset,
+					expirationOffset
+				);
+				
+				// Get available expirations for navigation
+				const expirationsResponse = await tradierClient.getOptionExpirations(symbol);
+				const availableExpirations = expirationsResponse?.expirations?.date || [];
 				
 				// Find next day spread to estimate tomorrow's value
 				const strike = parseFloat(spreadOptions.shortOption.strike || 0);
@@ -327,7 +343,9 @@ export async function POST({ request }) {
 					currentSpreadCost,
 					nextDaySpreadCost,
 					estimatedTomorrowValue,
-					estimatedOvernightGain
+					estimatedOvernightGain,
+					availableExpirations,
+					currentStrike: strike
 				});
 			}
 
