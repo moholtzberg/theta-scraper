@@ -117,6 +117,120 @@ export async function findCalendarSpreadOptions(tradierClient, symbol, currentPr
 }
 
 /**
+ * Find the "next day" calendar spread (one day closer to expiration)
+ * Used to estimate tomorrow's spread value by looking at what the next day spread trades for today
+ * @param {Object} tradierClient - Tradier API client
+ * @param {string} symbol - Underlying symbol
+ * @param {number} currentPrice - Current underlying price
+ * @param {string} strike - Strike price to use
+ * @param {string} optionType - 'call' or 'put'
+ * @param {string} currentShortExpiration - Current short expiration date
+ * @param {string} currentLongExpiration - Current long expiration date
+ * @returns {Promise<Object|null>} Next day spread options or null if not found
+ */
+export async function findNextDaySpreadOptions(tradierClient, symbol, currentPrice, strike, optionType, currentShortExpiration, currentLongExpiration) {
+	try {
+		// Get available expirations
+		const expirationsResponse = await tradierClient.getOptionExpirations(symbol);
+		const expirations = expirationsResponse?.expirations?.date || [];
+		
+		if (expirations.length < 2) {
+			return null;
+		}
+
+		// Calculate target days for next day spread (one day closer)
+		const currentShortDays = getTradingDaysUntilExpiration(currentShortExpiration);
+		const currentLongDays = getTradingDaysUntilExpiration(currentLongExpiration);
+		
+		const targetShortDays = Math.max(1, currentShortDays - 1); // At least 1 day
+		const targetLongDays = Math.max(2, currentLongDays - 1); // At least 2 days
+
+		// Find expirations closest to target days
+		let nextShortExpiration = null;
+		let nextLongExpiration = null;
+		let shortDaysDiff = Infinity;
+		let longDaysDiff = Infinity;
+
+		for (const expDate of expirations) {
+			const daysUntil = getTradingDaysUntilExpiration(expDate);
+			
+			// Find short expiration (one day closer)
+			if (daysUntil >= targetShortDays - 1 && daysUntil <= targetShortDays + 1) {
+				const diff = Math.abs(daysUntil - targetShortDays);
+				if (diff < shortDaysDiff) {
+					shortDaysDiff = diff;
+					nextShortExpiration = expDate;
+				}
+			}
+			
+			// Find long expiration (one day closer)
+			if (daysUntil >= targetLongDays - 1 && daysUntil <= targetLongDays + 1) {
+				const diff = Math.abs(daysUntil - targetLongDays);
+				if (diff < longDaysDiff) {
+					longDaysDiff = diff;
+					nextLongExpiration = expDate;
+				}
+			}
+		}
+
+		if (!nextShortExpiration || !nextLongExpiration) {
+			return null;
+		}
+
+		// Get options chains for both expirations
+		const [shortChainResponse, longChainResponse] = await Promise.all([
+			tradierClient.getOptionsChain(symbol, nextShortExpiration, { greeks: true }),
+			tradierClient.getOptionsChain(symbol, nextLongExpiration, { greeks: true })
+		]);
+
+		// Find options with the same strike
+		const shortOptionList = shortChainResponse?.options?.option;
+		const shortOptions = Array.isArray(shortOptionList) ? shortOptionList : (shortOptionList ? [shortOptionList] : []);
+		
+		const longOptionList = longChainResponse?.options?.option;
+		const longOptions = Array.isArray(longOptionList) ? longOptionList : (longOptionList ? [longOptionList] : []);
+
+		const nextShortOption = shortOptions.find(opt => 
+			opt.option_type === optionType && 
+			Math.abs(parseFloat(opt.strike || 0) - strike) < 0.01
+		);
+
+		const nextLongOption = longOptions.find(opt => 
+			opt.option_type === optionType && 
+			Math.abs(parseFloat(opt.strike || 0) - strike) < 0.01
+		);
+
+		if (!nextShortOption || !nextLongOption) {
+			return null;
+		}
+
+		// Extract delta from greeks
+		const nextLongDelta = parseFloat(nextLongOption.greeks?.delta || 0);
+		const nextShortDelta = parseFloat(nextShortOption.greeks?.delta || 0);
+
+		return {
+			shortOption: {
+				...nextShortOption,
+				delta: nextShortDelta,
+				expiration: nextShortExpiration,
+				daysUntil: getTradingDaysUntilExpiration(nextShortExpiration)
+			},
+			longOption: {
+				...nextLongOption,
+				delta: nextLongDelta,
+				expiration: nextLongExpiration,
+				daysUntil: getTradingDaysUntilExpiration(nextLongExpiration)
+			},
+			shortExpiration: nextShortExpiration,
+			longExpiration: nextLongExpiration
+		};
+	} catch (error) {
+		console.error('Error finding next day spread options:', error);
+		return null;
+	}
+}
+
+/**
  * Create a calendar spread order
  * Calendar spread: Sell short expiration, Buy long expiration (both same strike, target delta)
  * @param {boolean} preview - Whether to preview the order instead of placing it

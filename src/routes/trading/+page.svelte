@@ -32,6 +32,9 @@
 	// Preview modal state
 	let showPreviewModal = $state(false);
 	let previewData = $state(null);
+	
+	// Portfolio greeks state
+	let portfolioGreeks = $state({ netDelta: 0, netTheta: 0, loading: false });
 
 	const availableSymbols = [
 		{ value: 'SPY', label: 'SPY - S&P 500 ETF' },
@@ -64,6 +67,15 @@
 				spreadOptionsWsClient.disconnect();
 			}
 		};
+	});
+
+	// Recalculate portfolio greeks when positions change
+	$effect(() => {
+		if (positions.length > 0) {
+			calculatePortfolioGreeks();
+		} else {
+			portfolioGreeks = { netDelta: 0, netTheta: 0, loading: false };
+		}
 	});
 
 
@@ -430,6 +442,9 @@
 				// Automatically find roll options for existing positions
 				if (positions.length > 0) {
 					await findRollOptionsForPositions();
+					await calculatePortfolioGreeks();
+				} else {
+					portfolioGreeks = { netDelta: 0, netTheta: 0, loading: false };
 				}
 			}
 		} catch (err) {
@@ -437,6 +452,71 @@
 			console.error('Error loading data:', err);
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function calculatePortfolioGreeks() {
+		if (positions.length === 0) {
+			portfolioGreeks = { netDelta: 0, netTheta: 0, loading: false };
+			return;
+		}
+
+		portfolioGreeks.loading = true;
+		try {
+			// Get all position symbols
+			const positionSymbols = positions
+				.map(p => p.symbol)
+				.filter(s => s);
+
+			if (positionSymbols.length === 0) {
+				portfolioGreeks = { netDelta: 0, netTheta: 0, loading: false };
+				return;
+			}
+
+			// Fetch quotes with greeks for all positions
+			const response = await fetch('/api/trading', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					action: 'get_position_greeks',
+					symbols: positionSymbols
+				})
+			});
+
+			const data = await response.json();
+			
+			if (data.error) {
+				console.warn('Error fetching position greeks:', data.error);
+				portfolioGreeks = { netDelta: 0, netTheta: 0, loading: false };
+				return;
+			}
+
+			// Calculate total net delta and theta
+			let totalDelta = 0;
+			let totalTheta = 0;
+
+			if (data.greeks) {
+				for (const [symbol, greekData] of Object.entries(data.greeks)) {
+					const position = positions.find(p => p.symbol === symbol);
+					if (position && greekData) {
+						const quantity = parseFloat(position.quantity || 0);
+						const delta = parseFloat(greekData.delta || 0);
+						const theta = parseFloat(greekData.theta || 0);
+						
+						totalDelta += delta * quantity;
+						totalTheta += theta * quantity;
+					}
+				}
+			}
+
+			portfolioGreeks = {
+				netDelta: totalDelta,
+				netTheta: totalTheta,
+				loading: false
+			};
+		} catch (err) {
+			console.error('Error calculating portfolio greeks:', err);
+			portfolioGreeks = { netDelta: 0, netTheta: 0, loading: false };
 		}
 	}
 
@@ -466,6 +546,13 @@
 				symbol = data.symbol || selectedSymbol;
 				targetDelta = data.targetDelta || targetDelta;
 				optionType = data.optionType || optionType;
+				
+				// Store next day spread data for estimation
+				spreadOptions.nextDaySpread = data.nextDaySpread;
+				spreadOptions.currentSpreadCost = data.currentSpreadCost;
+				spreadOptions.nextDaySpreadCost = data.nextDaySpreadCost;
+				spreadOptions.estimatedTomorrowValue = data.estimatedTomorrowValue;
+				spreadOptions.estimatedOvernightGain = data.estimatedOvernightGain;
 				
 				// Set up streaming for spread options
 				if (streamingEnabled && streamingSessionId && spreadOptions) {
@@ -762,7 +849,14 @@
 				
 				if (!result.error && result.spreadOptions) {
 					rollOptions[underlying] = {
-						spreadOptions: result.spreadOptions,
+						spreadOptions: {
+							...result.spreadOptions,
+							nextDaySpread: result.nextDaySpread,
+							currentSpreadCost: result.currentSpreadCost,
+							nextDaySpreadCost: result.nextDaySpreadCost,
+							estimatedTomorrowValue: result.estimatedTomorrowValue,
+							estimatedOvernightGain: result.estimatedOvernightGain
+						},
 						currentPrice: result.currentPrice,
 						optionType: data.optionType
 					};
@@ -950,6 +1044,37 @@
 					{loading ? 'Loading...' : 'Refresh'}
 				</button>
 			</div>
+
+			<!-- Portfolio Greeks Summary -->
+			{#if positions.length > 0}
+				<div class="mb-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+					<h3 class="text-lg font-semibold mb-3 text-gray-900">📊 Overall Portfolio Greeks</h3>
+					{#if portfolioGreeks.loading}
+						<p class="text-sm text-gray-600">Calculating portfolio greeks...</p>
+					{:else}
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+							<div>
+								<p class="text-sm text-gray-600">Total Net Delta</p>
+								<p class="text-2xl font-bold {portfolioGreeks.netDelta >= 0 ? 'text-green-600' : 'text-red-600'}">
+									{portfolioGreeks.netDelta.toFixed(3)}
+								</p>
+								<p class="text-xs text-gray-500 mt-1">
+									Combined delta exposure across all positions
+								</p>
+							</div>
+							<div>
+								<p class="text-sm text-gray-600">Total Net Theta</p>
+								<p class="text-2xl font-bold {portfolioGreeks.netTheta >= 0 ? 'text-green-600' : 'text-red-600'}">
+									{portfolioGreeks.netTheta.toFixed(2)} /day
+								</p>
+								<p class="text-xs text-gray-500 mt-1">
+									Daily theta collection/loss across all positions
+								</p>
+							</div>
+						</div>
+					{/if}
+				</div>
+			{/if}
 
 			{#if loading && positions.length === 0}
 				<p class="text-gray-600">Loading positions...</p>
@@ -1160,6 +1285,46 @@
 								<p class="text-xs text-gray-500 mt-1">
 									(Buy long at {formatCurrency(rollData.spreadOptions.longOption.ask || 0)} - Sell short at {formatCurrency(rollData.spreadOptions.shortOption.bid || 0)})
 								</p>
+							</div>
+						{/if}
+
+						<!-- Next Day Spread Estimate for Roll Options -->
+						{#if rollData.spreadOptions.nextDaySpread && rollData.spreadOptions.estimatedOvernightGain !== null && rollData.spreadOptions.estimatedOvernightGain !== undefined}
+							<div class="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
+								<h3 class="text-lg font-semibold mb-3 text-gray-900">🔮 Tomorrow's Value Estimate</h3>
+								<p class="text-sm text-gray-600 mb-3">
+									Estimating tomorrow's value by comparing to today's {(rollData.spreadOptions.nextDaySpread.shortOption.daysUntil || 'N/A')}/{rollData.spreadOptions.nextDaySpread.longOption.daysUntil || 'N/A'} calendar spread
+								</p>
+								<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+									<div>
+										<p class="text-sm text-gray-600">Current Spread Cost</p>
+										<p class="text-lg font-semibold text-gray-900">
+											{rollData.spreadOptions.currentSpreadCost !== null ? formatCurrency(rollData.spreadOptions.currentSpreadCost) : 'N/A'}
+										</p>
+										<p class="text-xs text-gray-500 mt-1">Cost to open spread</p>
+									</div>
+									<div>
+										<p class="text-sm text-gray-600">Estimated Tomorrow Value</p>
+										<p class="text-lg font-semibold text-gray-900">
+											{rollData.spreadOptions.estimatedTomorrowValue !== null ? formatCurrency(rollData.spreadOptions.estimatedTomorrowValue) : 'N/A'}
+										</p>
+										<p class="text-xs text-gray-500 mt-1">Based on {(rollData.spreadOptions.nextDaySpread.shortOption.daysUntil || 'N/A')}/{rollData.spreadOptions.nextDaySpread.longOption.daysUntil || 'N/A'} spread today</p>
+									</div>
+									<div>
+										<p class="text-sm text-gray-600">Estimated Overnight Gain</p>
+										<p class="text-xl font-bold {rollData.spreadOptions.estimatedOvernightGain >= 0 ? 'text-green-600' : 'text-red-600'}">
+											{rollData.spreadOptions.estimatedOvernightGain >= 0 ? '+' : ''}{formatCurrency(rollData.spreadOptions.estimatedOvernightGain)}
+										</p>
+										<p class="text-xs text-gray-500 mt-1">
+											For {quantity} spread{quantity > 1 ? 's' : ''}: {formatCurrency(rollData.spreadOptions.estimatedOvernightGain * quantity)}
+										</p>
+									</div>
+								</div>
+								<div class="mt-3 pt-3 border-t border-green-300">
+									<p class="text-xs text-gray-500">
+										⚠️ Assumes underlying price and volatility remain unchanged. Based on current market prices of {(rollData.spreadOptions.nextDaySpread.shortOption.daysUntil || 'N/A')}/{rollData.spreadOptions.nextDaySpread.longOption.daysUntil || 'N/A'} calendar spread trading today.
+									</p>
+								</div>
 							</div>
 						{/if}
 					{/if}
@@ -1479,6 +1644,46 @@
 						<p class="text-xs text-gray-500 mt-1">
 							(Buy long at {formatCurrency(spreadOptions.longOption.ask || 0)} - Sell short at {formatCurrency(spreadOptions.shortOption.bid || 0)})
 						</p>
+					</div>
+				{/if}
+
+				<!-- Next Day Spread Estimate -->
+				{#if spreadOptions.nextDaySpread && spreadOptions.estimatedOvernightGain !== null && spreadOptions.estimatedOvernightGain !== undefined}
+					<div class="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
+						<h3 class="text-lg font-semibold mb-3 text-gray-900">🔮 Tomorrow's Value Estimate</h3>
+						<p class="text-sm text-gray-600 mb-3">
+							Estimating tomorrow's value by comparing to today's {(spreadOptions.nextDaySpread.shortOption.daysUntil || 'N/A')}/{spreadOptions.nextDaySpread.longOption.daysUntil || 'N/A'} calendar spread
+						</p>
+						<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+							<div>
+								<p class="text-sm text-gray-600">Current Spread Cost</p>
+								<p class="text-lg font-semibold text-gray-900">
+									{spreadOptions.currentSpreadCost !== null ? formatCurrency(spreadOptions.currentSpreadCost) : 'N/A'}
+								</p>
+								<p class="text-xs text-gray-500 mt-1">Cost to open spread</p>
+							</div>
+							<div>
+								<p class="text-sm text-gray-600">Estimated Tomorrow Value</p>
+								<p class="text-lg font-semibold text-gray-900">
+									{spreadOptions.estimatedTomorrowValue !== null ? formatCurrency(spreadOptions.estimatedTomorrowValue) : 'N/A'}
+								</p>
+								<p class="text-xs text-gray-500 mt-1">Based on {(spreadOptions.nextDaySpread.shortOption.daysUntil || 'N/A')}/{spreadOptions.nextDaySpread.longOption.daysUntil || 'N/A'} spread today</p>
+							</div>
+							<div>
+								<p class="text-sm text-gray-600">Estimated Overnight Gain</p>
+								<p class="text-xl font-bold {spreadOptions.estimatedOvernightGain >= 0 ? 'text-green-600' : 'text-red-600'}">
+									{spreadOptions.estimatedOvernightGain >= 0 ? '+' : ''}{formatCurrency(spreadOptions.estimatedOvernightGain)}
+								</p>
+								<p class="text-xs text-gray-500 mt-1">
+									For {quantity} spread{quantity > 1 ? 's' : ''}: {formatCurrency(spreadOptions.estimatedOvernightGain * quantity)}
+								</p>
+							</div>
+						</div>
+						<div class="mt-3 pt-3 border-t border-green-300">
+							<p class="text-xs text-gray-500">
+								⚠️ Assumes underlying price and volatility remain unchanged. Based on current market prices of {(spreadOptions.nextDaySpread.shortOption.daysUntil || 'N/A')}/{spreadOptions.nextDaySpread.longOption.daysUntil || 'N/A'} calendar spread trading today.
+							</p>
+						</div>
 					</div>
 				{/if}
 			</div>

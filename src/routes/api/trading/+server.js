@@ -4,7 +4,8 @@ import {
 	findCalendarSpreadOptions, 
 	createCalendarSpreadOrder,
 	getCurrentCalendarSpreads,
-	rollCalendarSpread
+	rollCalendarSpread,
+	findNextDaySpreadOptions
 } from '$lib/trading.js';
 import { TRADIER_ACCESS_TOKEN, TRADIER_USE_SANDBOX } from '$env/static/private';
 
@@ -201,13 +202,106 @@ export async function POST({ request }) {
 				});
 			}
 
+			case 'get_position_greeks': {
+				// Get greeks for multiple position symbols
+				const { symbols } = body;
+				if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
+					return json({ greeks: {} });
+				}
+
+				try {
+					// Fetch quotes with greeks for all symbols
+					const quotesResponse = await tradierClient.getQuotes(symbols, { greeks: true });
+					const quotes = quotesResponse?.quotes?.quote;
+					
+					if (!quotes) {
+						return json({ greeks: {} });
+					}
+
+					// Build greeks map
+					const greeksMap = {};
+					const quoteList = Array.isArray(quotes) ? quotes : [quotes];
+					
+					for (const quote of quoteList) {
+						if (quote.symbol && quote.greeks) {
+							greeksMap[quote.symbol] = {
+								delta: parseFloat(quote.greeks.delta || 0),
+								theta: parseFloat(quote.greeks.theta || 0),
+								gamma: parseFloat(quote.greeks.gamma || 0),
+								vega: parseFloat(quote.greeks.vega || 0)
+							};
+						}
+					}
+
+					return json({ greeks: greeksMap });
+				} catch (err) {
+					console.error('Error fetching position greeks:', err);
+					return json({ error: err.message, greeks: {} });
+				}
+			}
+
 			case 'find_spread': {
 				// Find available calendar spread options
 				const quotesResponse = await tradierClient.getQuotes([symbol]);
 				const currentPrice = parseFloat(quotesResponse?.quotes?.quote?.last || 0);
 				
 				const spreadOptions = await findCalendarSpreadOptions(tradierClient, symbol, currentPrice, delta, normalizedOptionType);
-				return json({ spreadOptions, currentPrice, symbol, targetDelta: delta, optionType: normalizedOptionType });
+				
+				// Find next day spread to estimate tomorrow's value
+				const strike = parseFloat(spreadOptions.shortOption.strike || 0);
+				const nextDaySpread = await findNextDaySpreadOptions(
+					tradierClient, 
+					symbol, 
+					currentPrice, 
+					strike, 
+					normalizedOptionType,
+					spreadOptions.shortExpiration,
+					spreadOptions.longExpiration
+				);
+				
+				// Calculate current spread value and next day spread value
+				// For opening: Net debit = Long ask - Short bid (what you pay to open)
+				// For closing: Net credit = Short ask - Long bid (what you receive to close)
+				// Tomorrow's value estimate: What a 2/4 spread trades for today (as a proxy)
+				let currentSpreadCost = null;
+				let nextDaySpreadCost = null;
+				let estimatedTomorrowValue = null;
+				let estimatedOvernightGain = null;
+				
+				if (spreadOptions.shortOption.bid && spreadOptions.longOption.ask) {
+					// Current spread cost to open: Buy long at ask, Sell short at bid
+					currentSpreadCost = (spreadOptions.longOption.ask - spreadOptions.shortOption.bid) * 100;
+					// Current spread value if closing: Sell long at bid, Buy short at ask
+					// But we'll use the next day spread cost as proxy for tomorrow's value
+				}
+				
+				if (nextDaySpread && nextDaySpread.shortOption.bid && nextDaySpread.longOption.ask) {
+					// Next day spread cost (what a 2/4 trades for today): Buy long at ask, Sell short at bid
+					nextDaySpreadCost = (nextDaySpread.longOption.ask - nextDaySpread.shortOption.bid) * 100;
+					// This represents what your spread might be worth tomorrow (as a 2/4 spread)
+					// To close tomorrow: Sell long at bid, Buy short at ask
+					// Estimated closing value = Short ask - Long bid
+					// But we'll use the spread cost as a proxy (market makers' view)
+					estimatedTomorrowValue = nextDaySpreadCost;
+					
+					if (currentSpreadCost !== null) {
+						// Gain = Tomorrow's value - Today's cost
+						estimatedOvernightGain = nextDaySpreadCost - currentSpreadCost;
+					}
+				}
+				
+				return json({ 
+					spreadOptions, 
+					currentPrice, 
+					symbol, 
+					targetDelta: delta, 
+					optionType: normalizedOptionType,
+					nextDaySpread,
+					currentSpreadCost,
+					nextDaySpreadCost,
+					estimatedTomorrowValue,
+					estimatedOvernightGain
+				});
 			}
 
 			case 'buy_spread': {
