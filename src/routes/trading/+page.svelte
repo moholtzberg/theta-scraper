@@ -1115,6 +1115,42 @@
 							</div>
 						</div>
 
+						<!-- Net Greeks Summary for Roll Options -->
+						{#if rollData.spreadOptions}
+							{@const rollShortDelta = rollData.spreadOptions.shortOption.delta ?? rollData.spreadOptions.shortOption.greeks?.delta ?? 0}
+							{@const rollLongDelta = rollData.spreadOptions.longOption.delta ?? rollData.spreadOptions.longOption.greeks?.delta ?? 0}
+							{@const rollShortTheta = rollData.spreadOptions.shortOption.greeks?.theta ?? 0}
+							{@const rollLongTheta = rollData.spreadOptions.longOption.greeks?.theta ?? 0}
+							{@const rollNetDelta = (rollLongDelta - rollShortDelta) * quantity}
+							{@const rollNetTheta = (rollLongTheta - rollShortTheta) * quantity}
+							
+							{#if rollShortDelta !== 0 || rollLongDelta !== 0}
+								<div class="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+									<h3 class="text-lg font-semibold mb-3 text-gray-900">📊 Net Greeks (for {quantity} spread{quantity > 1 ? 's' : ''})</h3>
+									<div class="grid grid-cols-2 gap-4">
+										<div>
+											<p class="text-sm text-gray-600">Net Delta</p>
+											<p class="text-xl font-bold {rollNetDelta >= 0 ? 'text-green-600' : 'text-red-600'}">
+												{rollNetDelta.toFixed(3)}
+											</p>
+											<p class="text-xs text-gray-500 mt-1">
+												Long: {rollLongDelta.toFixed(3)} - Short: {rollShortDelta.toFixed(3)}
+											</p>
+										</div>
+										<div>
+											<p class="text-sm text-gray-600">Net Theta</p>
+											<p class="text-xl font-bold {rollNetTheta >= 0 ? 'text-green-600' : 'text-red-600'}">
+												{rollNetTheta.toFixed(2)} /day
+											</p>
+											<p class="text-xs text-gray-500 mt-1">
+												Long: {rollLongTheta.toFixed(2)} - Short: {rollShortTheta.toFixed(2)}
+											</p>
+										</div>
+									</div>
+								</div>
+							{/if}
+						{/if}
+
 						{#if rollData.spreadOptions.shortOption.ask && rollData.spreadOptions.longOption.bid}
 							<div class="mt-4 p-4 bg-gray-50 rounded-lg">
 								<p class="text-sm text-gray-600">Estimated Net Cost (per spread)</p>
@@ -1397,6 +1433,42 @@
 						</div>
 					</div>
 				</div>
+
+				<!-- Net Greeks Summary -->
+				{#if spreadOptions}
+					{@const shortDelta = spreadOptions.shortOption.delta ?? spreadOptions.shortOption.greeks?.delta ?? 0}
+					{@const longDelta = spreadOptions.longOption.delta ?? spreadOptions.longOption.greeks?.delta ?? 0}
+					{@const shortTheta = spreadOptions.shortOption.greeks?.theta ?? 0}
+					{@const longTheta = spreadOptions.longOption.greeks?.theta ?? 0}
+					{@const netDelta = (longDelta - shortDelta) * quantity}
+					{@const netTheta = (longTheta - shortTheta) * quantity}
+					
+					{#if shortDelta !== 0 || longDelta !== 0}
+						<div class="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+							<h3 class="text-lg font-semibold mb-3 text-gray-900">📊 Net Greeks (for {quantity} spread{quantity > 1 ? 's' : ''})</h3>
+							<div class="grid grid-cols-2 gap-4">
+								<div>
+									<p class="text-sm text-gray-600">Net Delta</p>
+									<p class="text-xl font-bold {netDelta >= 0 ? 'text-green-600' : 'text-red-600'}">
+										{netDelta.toFixed(3)}
+									</p>
+									<p class="text-xs text-gray-500 mt-1">
+										Long: {longDelta.toFixed(3)} - Short: {shortDelta.toFixed(3)}
+									</p>
+								</div>
+								<div>
+									<p class="text-sm text-gray-600">Net Theta</p>
+									<p class="text-xl font-bold {netTheta >= 0 ? 'text-green-600' : 'text-red-600'}">
+										{netTheta.toFixed(2)} /day
+									</p>
+									<p class="text-xs text-gray-500 mt-1">
+										Long: {longTheta.toFixed(2)} - Short: {shortTheta.toFixed(2)}
+									</p>
+								</div>
+							</div>
+						</div>
+					{/if}
+				{/if}
 
 				{#if spreadOptions.shortOption.ask && spreadOptions.longOption.bid}
 					<div class="mt-4 p-4 bg-gray-50 rounded-lg">
